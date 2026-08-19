@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ai_wiki_db 
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin_agent 
+      POSTGRES_PASSWORD: agent$$1117 
+      POSTGRES_DB: ai_wiki
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+ 
+volumes:
+  pgdata:
+ 
