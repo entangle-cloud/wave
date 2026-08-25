@@ -1,0 +1,20 @@
+services:
+  openviking:
+    image: ghcr.io/volcengine/openviking:main
+    container_name: openviking
+    restart: unless-stopped
+    ports:
+      - "${OPENVIKING_SERVER_PORT:-1933}:${OPENVIKING_SERVER_PORT:-1933}"
+    volumes:
+      - ~/.openviking:/app/.openviking
+    environment:
+      OPENVIKING_SERVER_PORT: ${OPENVIKING_SERVER_PORT:-1933}
+      OPENVIKING_PUBLIC_BASE_URL: ${OPENVIKING_PUBLIC_BASE_URL:-}
+      OPENVIKING_SERVER_HOST: "0.0.0.0"
+      OPENVIKING_SERVER_AUTH_MODE: "api_key"
+      OPENVIKING_SERVER_ROOT_API_KEY: "123456"
+    healthcheck:
+      test: ["CMD", "openviking-entrypoint", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
