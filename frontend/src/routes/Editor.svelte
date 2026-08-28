@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { apiFetch } from "../lib/api";
   import { Button, ScrollArea, Dialog, Label, Select } from "bits-ui";
   import Editor from "../lib/Components/editor.svelte";
   import SaveIcon from "@iconify-svelte/hugeicons/save";
-  import { editorTitle, editorContent } from "../store/editorStore.svelte";
+  import { editorTitle, editorContent, activeDoc } from "../store/editorStore.svelte";
   import {
     categories,
     selectedCategoryId,
@@ -10,9 +11,15 @@
   import AngleDownFilledIcon from "@iconify-svelte/reicon/angle-down-filled";
   import ArrowsUpIcon from "@iconify-svelte/reicon/arrows-up";
   import ArrowsDownIcon from "@iconify-svelte/reicon/arrows-down";
+  import { onMount } from "svelte";
+  import { mappedCategories } from "../lib/funcs";
+  import CheckCircleDuotoneIcon from "@iconify-svelte/reicon/check-filled";
+  import TrashIconFilled from "@iconify-svelte/reicon/trash-filled";
+  let { params }: { params?: { id?: string } } = $props();
 
   let saveOpen = $state(false);
   let editorRef: Editor;
+  let loadedContent = $state<string | null>(null);
 
   type SectionInfo = {
     id: string;
@@ -59,23 +66,83 @@
       meta,
       sections.map((s) => s.id),
     );
+
     saveOpen = false;
-    console.log($editorContent);
-    console.log(getSelectedCategoryId());
-    const request = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/posts`, {
-      method: "POST",
-      headers: {
-        'content-type': 'application/json',
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        title: $editorTitle,
-        category_id: Number(getSelectedCategoryId()),
-        content: $editorContent,
-      })
-    })
-    console.log(await request.json())
+
+    if (params && params.id === "new") {
+      const request = await apiFetch(
+        `${import.meta.env.VITE_API_ENDPOINT}/posts`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            title: $editorTitle,
+            category_id: Number(getSelectedCategoryId()),
+            content: $editorContent,
+            description: meta.description,
+          }),
+        },
+      );
+      console.log(await request.json());
+    } else if (params && params.id !== "new") {
+      const request = await apiFetch(`${import.meta.env.VITE_APIENDPOINT}/posts`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          post_id: Number(params.id),
+          title: $editorTitle,
+          category_id: Number(getSelectedCategoryId()),
+          content: $editorContent,
+          description: meta.description,
+        }),
+      });
+    }
   };
+
+  const deleteDocument = async (id: number) => {
+    const request = await apiFetch(
+      `${import.meta.env.VITE_API_ENDPOINT}/posts/${id}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      },
+    );
+
+    if (request.ok) {
+      console.log("delete successful");
+    }
+  };
+
+  onMount(async () => {
+    const mappedCategory = mappedCategories;
+    categories.set(mappedCategory);
+    const postId = params?.id;
+    if (postId && postId !== "new") {
+      const request = await apiFetch(
+        `${import.meta.env.VITE_API_ENDPOINT}/posts/${postId}`,
+      );
+      if (request.ok) {
+        const requestJson: {
+          content: string;
+          author_id: number;
+          category_id: number;
+          created_At: Date;
+          id: number;
+          title: string;
+          content_ref: string;
+        } = await request.json();
+        editorTitle.set(requestJson.title);
+        loadedContent = requestJson.content;
+      }
+      activeDoc.set(postId)
+    }
+  });
 </script>
 
 <div
@@ -87,23 +154,34 @@
       >
     </div>
     <div class="flex-none">
-      <ul class="menu menu-horizontal px-1">
+      <ul class="menu menu-horizontal px-1 gap-1.5">
         <li>
           <Button.Root
             class="btn btn-primary btn-soft btn-sm"
             onclick={openSaveSheet}
           >
-            <SaveIcon height="1em" />
+            <SaveIcon class="size-4" />
             Save</Button.Root
           >
         </li>
+        {#if params && params?.id !== "new"}
+          <li>
+            <Button.Root
+              onclick={() => deleteDocument(Number(params.id))}
+              class="btn btn-soft btn-error btn-sm"
+            >
+              <TrashIconFilled class="size-4" />
+              Delete
+            </Button.Root>
+          </li>
+        {/if}
       </ul>
     </div>
   </div>
 
   <ScrollArea.Root class="min-h-0 flex-1 pb-6">
     <ScrollArea.Viewport class="size-full">
-      <Editor bind:this={editorRef} />
+      <Editor bind:this={editorRef} content={loadedContent} />
     </ScrollArea.Viewport>
     <ScrollArea.Scrollbar
       orientation="vertical"
@@ -201,29 +279,20 @@
                     <Select.Item
                       value={category.id.toString()}
                       label="{category.parentId ? '— ' : ''}{category.name}"
-                      class="flex items-center gap-2 rounded-field px-3 py-1.5 text-sm data-highlighted:bg-base-200"
+                      class="rounded-button gap-2 data-highlighted:bg-muted outline-hidden data-disabled:opacity-50 flex h-10 w-full select-none items-center py-3 pl-5 pr-1.5 text-sm capitalize"
                     >
                       {#snippet children({ selected })}
                         <span
                           class="size-2 shrink-0 rounded-full"
                           style="background:{category.color}"
                         ></span>
-                        <span class="truncate">
+                        <span
+                          class="truncate {selected ? 'font-semibold' : ''}"
+                        >
                           {category.parentId ? "— " : ""}{category.name}
                         </span>
                         {#if selected}
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            class="ml-auto size-4"
-                          >
-                            <path d="M20 6 9 17l-5-5" />
-                          </svg>
+                          <CheckCircleDuotoneIcon class="size-4" />
                         {/if}
                       {/snippet}
                     </Select.Item>
