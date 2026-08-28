@@ -1,9 +1,2 @@
-const config = {
-  // ... other config
-  kit: {
-    // ... other config
-    alias: {
-      "@/*": "./path/to/lib/*",
-    },
-  },
-};
+/** @type {import("@sveltejs/vite-plugin-svelte").SvelteConfig} */
+export default {}
