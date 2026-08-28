@@ -1,16 +1,14 @@
 <script lang="ts">
   // ---------------------------------------------------------------------------
   // Imports
-  // ---------------------------------------------------------------------------
-  import { onMount } from "svelte";
+// -----------------------------------------------------------------------------
   import { editorViewCtx } from "@milkdown/core";
+  import {replaceAll} from "@milkdown/utils"
   import { Crepe } from "@milkdown/crepe";
   import type { Node as PMNode } from "@milkdown/prose/model";
   import "@milkdown/crepe/theme/common/style.css";
   import "@milkdown/crepe/theme/frame.css";
   import { protectSectionPlugin } from "../plugins/proseMirrorLock";
-  import { listener, listenerCtx } from "@milkdown/plugin-listener";
-  import { ctxCallOutOfScope } from "@milkdown/kit/exception";
   import { editorTitle, editorContent } from "../../store/editorStore.svelte";
 
   /**
@@ -50,9 +48,11 @@
   // ---------------------------------------------------------------------------
   // Component state
   // ---------------------------------------------------------------------------
+  
+  let {content= null} :{content?: string | null} = $props()
 
   /** Holds the Crepe editor instance once initialized */
-  let crepeInstance: null | Crepe = null;
+  let crepeInstance: null | Crepe = $state<Crepe | null>(null);
 
   /** Default markdown content used to seed the editor on mount. */
   const DEFAULT_CONTENT = "#";
@@ -216,6 +216,15 @@
   const handleReady = (crepe: Crepe) => {
     crepeInstance = crepe;
   };
+
+  $effect(() => {
+    const md = content 
+    const inst = crepeInstance
+    if (md && inst) {
+      inst.editor.action(replaceAll(md))
+      editorContent.set(md)
+    }
+  })
 
   // ---------------------------------------------------------------------------
   // Public API (exposed to parent components)
