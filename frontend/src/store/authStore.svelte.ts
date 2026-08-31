@@ -101,7 +101,7 @@ export const login = async (
     const requestJson = await request.json()
     const user: User = {
       email: requestJson.user.email,
-      avatar: requestJson.user.avatar,
+      avatar: requestJson.user.avatar_url,
       name: requestJson.user.name,
       id: requestJson.user.id,
       expiresAt: decodeExpiry(requestJson.access_token),
@@ -148,6 +148,38 @@ export const signup = async (
     };
     userStore.set(user);
     scheduleExpiry(user);
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Updates the user's profile.
+ */
+export const updateProfile = async (
+  name: string,
+  email: string,
+  avatar: File | null
+): Promise<boolean> => {
+  const form = new FormData()
+  form.append("name", name)
+  form.append("email", email)
+  if (avatar)
+    form.append("avatar", avatar)
+  const request = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/auth/me`, {
+    method: "PUT",
+    credentials: "include",
+    body: form
+  });
+
+  if (request.ok) {
+    const requestJson = await request.json();
+    userStore.update(($user) => {
+      if ($user) {
+        return { ...$user, name: requestJson.name, email: requestJson.email };
+      }
+      return $user;
+    });
     return true;
   }
   return false;

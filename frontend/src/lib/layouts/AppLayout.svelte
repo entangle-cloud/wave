@@ -5,6 +5,7 @@
   import { userStore, logout } from "../../store/authStore.svelte";
   import SidebarTree from "../Components/SidebarTree.svelte";
   import Logout2DuotoneIcon from "@iconify-svelte/reicon/logout2-duotone";
+  import {Avatar} from 'bits-ui'
 
   let { children }: { children: import("svelte").Snippet } = $props();
 
@@ -18,6 +19,7 @@
   ];
 
   const user = $derived($userStore);
+
 </script>
 
 <div class="flex h-screen w-full overflow-hidden bg-olive-100">
@@ -95,13 +97,17 @@
             ? ''
             : 'justify-center'}"
         >
-          <div class="avatar avatar-placeholder">
-            <div class="w-8 rounded-full bg-neutral text-neutral-content">
-              <span class="text-sm"
-                >{(user?.name ?? "U").charAt(0).toUpperCase()}</span
-              >
+          <Avatar.Root
+            delayMs={200}
+            class="data-[status=loaded]:border-foreground bg-muted text-muted-foreground h-12 w-12 rounded-full border text-[17px] font-medium uppercase data-[status=loading]:border-transparent"
+          >
+            <div
+              class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-transparent"
+            >
+              <Avatar.Image src={user?.avatar} alt={user?.name} />
+              <Avatar.Fallback class="border-muted border uppercase">{user?.name[0]}</Avatar.Fallback>
             </div>
-          </div>
+          </Avatar.Root>
           {#if open}
             <div class="min-w-0 flex-1">
               <div class="truncate text-sm font-medium capitalize">
@@ -116,7 +122,7 @@
               title="Log out"
               onclick={logout}
             >
-            <Logout2DuotoneIcon class="size-4" />
+              <Logout2DuotoneIcon class="size-4" />
             </button>
           {/if}
         </div>
