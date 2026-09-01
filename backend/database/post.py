@@ -22,6 +22,7 @@ class Post(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(280), unique=True, index=True, nullable=False)
     content_ref: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True) 
     author_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
