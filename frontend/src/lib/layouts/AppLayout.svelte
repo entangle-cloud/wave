@@ -5,6 +5,7 @@
   import { userStore, logout } from "../../store/authStore.svelte";
   import SidebarTree from "../Components/SidebarTree.svelte";
   import Logout2DuotoneIcon from "@iconify-svelte/reicon/logout2-duotone";
+  import TuningSquareDuotoneIcon from '@iconify-svelte/reicon/tuning-square-duotone';
   import {Avatar} from 'bits-ui'
 
   let { children }: { children: import("svelte").Snippet } = $props();
@@ -14,7 +15,6 @@
   const navItems = [
     { label: "Home", href: "#/" },
     { label: "Docs", href: "#/docs" },
-    { label: "Editor", href: "#/docs/new" },
     { label: "Categories", href: "#/categories" },
   ];
 
@@ -31,7 +31,7 @@
     >
       <div class="flex items-center justify-between bg-olive-100 gap-2 p-4">
         <span class="truncate text-lg font-bold {open ? '' : 'hidden'}"
-          >ai_docs</span
+          >🌊 Entangle</span
         >
         <Collapsible.Trigger
           class="btn btn-ghost btn-square btn-sm shrink-0"
@@ -117,6 +117,9 @@
                 {user?.email ?? ""}
               </div>
             </div>
+              <a href="/#/settings" class="btn btn-ghost btn-square btn-sm shrink-0">
+                <TuningSquareDuotoneIcon class="size-4" />
+              </a>
             <button
               class="btn btn-ghost btn-square btn-sm shrink-0"
               title="Log out"
