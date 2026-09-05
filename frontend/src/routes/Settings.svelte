@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import { z } from "zod";
   import { Avatar, Button, Label } from "bits-ui";
-  import { userStore, updateProfile } from "../store/authStore.svelte";
+  import { updateProfile } from "../store/authStore.svelte";
+  import { Toaster , toast} from "svelte-sonner";
 
   let name = $state("");
   let email = $state("");
@@ -49,25 +50,30 @@
     }
   };
 
+  const request = fetch(`${import.meta.env.VITE_API_ENDPOINT}/auth/me`, {
+    method: "GET",
+    credentials: "include",
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      name = data.name;
+      email = data.email;
+      avatar = data.avatar_url;
+    })
+    .catch((e) => {
+      error = true;
+      errorMessage = "Error loading profile";
+    })
+    .finally(() => {
+      loading = false;
+    });
   onMount(() => {
     loading = true;
-    const request = fetch(`${import.meta.env.VITE_API_ENDPOINT}/auth/me`, {
-      method: "GET",
-      credentials: "include",
+    toast.promise(request, {
+      success: "Settings loaded", 
+      loading: "Loading settings",
+      error: errorMessage
     })
-      .then((res) => res.json())
-      .then((data) => {
-        name = data.name;
-        email = data.email;
-        avatar = data.avatar;
-      })
-      .catch((e) => {
-        error = true;
-        errorMessage = "Error loading profile";
-      })
-      .finally(() => {
-        loading = false;
-      });
   });
 
   const handleSubmit = async (event: SubmitEvent) => {
@@ -98,6 +104,12 @@
     }
   };
 </script>
+
+<svelte:head>
+  <title>Settings - 🌊 Wave</title>
+</svelte:head>
+
+<Toaster />
 
 <div class="mx-auto max-w-5xl">
   <div class="mt-8 space-y-4">
