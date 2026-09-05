@@ -7,15 +7,12 @@
   let email = $state("");
   let password = $state("");
   let submitting = $state(false);
-  let errors = $state<
-    Partial<Record<"name" | "email" | "password", string>>
-  >({});
+  let errors = $state<Partial<Record<"name" | "email" | "password", string>>>(
+    {},
+  );
 
   const signupSchema = z.object({
-    name: z
-      .string()
-      .trim()
-      .min(2, "Name must be at least 2 characters"),
+    name: z.string().trim().min(2, "Name must be at least 2 characters"),
     email: z.email("Enter a valid email address"),
     password: z
       .string()
@@ -34,9 +31,9 @@
       ...errors,
       [field]: result.success ? undefined : result.error.issues[0].message,
     };
-  }
+  };
 
-  const handleSubmit = async(event: SubmitEvent) => {
+  const handleSubmit = async (event: SubmitEvent) => {
     event.preventDefault();
 
     const result = signupSchema.safeParse({ name, email, password });
@@ -53,17 +50,25 @@
     errors = {};
     submitting = true;
     try {
-      const request = await signup(result.data.email, result.data.name, result.data.password);
+      const request = await signup(
+        result.data.email,
+        result.data.name,
+        result.data.password,
+      );
       if (request) {
-          location.hash = "#/";
+        location.hash = "#/";
       } else {
-        console.log(request)
+        console.log(request);
       }
     } finally {
       submitting = false;
     }
-  }
+  };
 </script>
+
+<svelte:head>
+  <title>Signup - 🌊 Wave</title>
+</svelte:head>
 
 <h2 class="card-title mb-4 justify-center">Create account</h2>
 
