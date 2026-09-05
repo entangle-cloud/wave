@@ -2,6 +2,7 @@
   import { z } from "zod";
   import { Button, Label } from "bits-ui";
   import { signup } from "../store/authStore.svelte";
+  import { loadCategories } from "../store/categoryStore.svelte";
 
   let name = $state("");
   let email = $state("");
@@ -56,6 +57,7 @@
         result.data.password,
       );
       if (request) {
+        await loadCategories();
         location.hash = "#/";
       } else {
         console.log(request);
