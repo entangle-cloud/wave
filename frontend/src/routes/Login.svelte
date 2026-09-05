@@ -24,6 +24,9 @@
   };
 </script>
 
+<svelte:head>
+<title>Login - 🌊 Wave</title>
+</svelte:head>
 <h2 class="card-title mb-4 justify-center">Log in</h2>
 
 <form onsubmit={handleSubmit} class="flex flex-col gap-3">
