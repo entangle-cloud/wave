@@ -28,28 +28,14 @@ from schemas import (
     UserUpdate,
     user_update_form,
 )
-import boto3
-from botocore.config import Config
+
+
 from urllib.parse import urlparse, unquote
+from clients.s3_client import s3_client
 
 JWT_SECRET = os.getenv("JWT_SECRET")
-R2_ACCESS_TOKEN = os.getenv("R2_ACCESS_KEY")
-R2_ACCESS_SECRET = os.getenv("R2_ACCESS_SECRET")
-R2_ENDPOINT = os.getenv("R2_ENDPOINT")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
-
-s3_client = boto3.client(
-    "s3",
-    endpoint_url=R2_ENDPOINT,
-    aws_access_key_id=R2_ACCESS_TOKEN,
-    aws_secret_access_key=R2_ACCESS_SECRET,
-    config=Config(
-        signature_version="s3v4",
-        request_checksum_calculation="when_required",
-        response_checksum_validation="when_required",
-    ),
-    region_name="auto",
-)
+R2_ENDPOINT = os.getenv("R2_ENDPOINT")
 
 DB = Annotated[AsyncSession, Depends(get_db)]
 
@@ -184,7 +170,7 @@ async def login(payload: LoginRequest, db: DB, response: Response):
         max_age=int(ACCESS_TOKEN_EXPIRE_MINUTES) * 60,
         path="/",
     )
-    return TokenResponse(access_token=access_token, user=response_user )
+    return TokenResponse(access_token=access_token, user=response_user)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -200,7 +186,27 @@ async def get_profile(user: CurrentUser, db: DB):
             detail="This account has been deactivated",
         )
 
-    return findUser
+    persistant_url = ""
+
+    if findUser.avatar_url is not None:
+        parsed = urlparse(user.avatar_url)
+        key = unquote(parsed.path.lstrip("/"))
+
+        persistant_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": key},
+            ExpiresIn=3600,  # 1 hour
+        )
+
+    return UserResponse(
+        id=findUser.id,
+        email=findUser.email,
+        name=findUser.name,
+        avatar_url=persistant_url,
+        role=findUser.role,
+        is_active=findUser.is_active,
+        created_at=findUser.created_at,
+    )
 
 
 @router.put("/me", response_model=UserResponse)
