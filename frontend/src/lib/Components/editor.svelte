@@ -223,6 +223,9 @@
     if (md && inst) {
       inst.editor.action(replaceAll(md))
       editorContent.set(md)
+      inst.editor.action((ctx) => {
+        ctx.get(editorViewCtx).focus()
+      })
     }
   })
 
