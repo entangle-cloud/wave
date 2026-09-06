@@ -1,42 +1,73 @@
-# sv
+# AI Docs Frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A modern, AI-powered documentation editor built with **Svelte 5**, **TypeScript**, and **Vite**. Features a WYSIWYG Markdown editor (Milkdown/ProseMirror), real-time chat assistance, category management.
 
-## Creating a project
+## Tech Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Framework**: Svelte 5, TypeScript, Vite
+- **Styling**: Tailwind CSS 4, DaisyUI 5
+- **Editor**: Milkdown (Crepe), ProseMirror
+- **Routing**: svelte-spa-router
+- **State**: Svelte 5 runes
+- **Auth**: JWT (access/refresh tokens), HttpOnly cookies
+- **Validation**: Zod 4
 
-```sh
-# create a new project
-npx sv create my-app
+## Quick Start
+
+```bash
+# Install dependencies
+bun install
+
+# Development server
+bun run dev
+
+# Build for production
+bun run build
+
+# Type checking
+bun run check
 ```
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-bun x sv@0.17.0 create --template minimal --types ts --add tailwindcss="plugins:forms,typography" --install bun frontend
+Create `.env` with:
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-## Developing
+## Project Structure
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```
+src/
+├── routes.ts          # Route definitions with auth guards
+├── guard.ts           # Route protection utilities
+├── lib/
+│   ├── api.ts         # Axios client + endpoints
+│   ├── Components/    # Reusable UI components
+│   ├── layouts/       # AppLayout, AuthLayout
+│   └── store/         # Svelte 5 runes-based stores
+└── routes/            # Page components
 ```
 
-## Building
+## Features
 
-To create a production version of your app:
+- **Rich Editor**: Milkdown with Nord theme, collaborative editing
+- **AI Assistant**: Context-aware chat with streaming responses
+- **Categories**: Hierarchical document organization
+- **Auth**: Secure JWT flow with auto-refresh
+- **Responsive**: Mobile-friendly DaisyUI components
 
-```sh
-npm run build
-```
+## Scripts
 
-You can preview the production build with `npm run preview`.
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start dev server |
+| `bun run build` | Production build |
+| `bun run check` | Type check (svelte-check + tsc) |
+| `bun run preview` | Preview production build |
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Contributing
+
+1. Run `bun run check` before committing
+2. Follow existing code style
+3. Components in `lib/Components/` (PascalCase)
+4. Stores in `lib/store/` (camelCaseStore.svelte.ts)
+5. Pages in `routes/` (PascalCase)
