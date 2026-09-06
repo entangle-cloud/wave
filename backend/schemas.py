@@ -18,6 +18,7 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -29,13 +30,15 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
+
 class UserUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     email: EmailStr
-    name: str 
-    role: UserRole |None = None 
+    name: str
+    role: UserRole | None = None
     is_active: bool | None = None
+
 
 def user_update_form(
     email: EmailStr = Form(...),
@@ -57,7 +60,7 @@ class PostCreate(BaseModel):
     content: str = Field(min_length=1)
     category_id: int | None = None
     slug: str | None = Field(None, min_length=1, max_length=280)
-    description: str | None = Field(None, max_length=500) 
+    description: str | None = Field(None, max_length=500)
 
 
 class PostUpdate(BaseModel):
@@ -69,6 +72,21 @@ class PostUpdate(BaseModel):
     description: str | None = Field(None, max_length=500)
 
 
+class CreatePostResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    slug: str
+    author_id: int | None
+    category_id: int | None
+    status: PostStatus
+    published_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    description: str | None = None
+
+
 class PostResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +95,9 @@ class PostResponse(BaseModel):
     slug: str
     content_ref: str
     author_id: int | None
+    author_name: str
+    author_avatar: str | None
+    author_active: bool
     category_id: int | None
     status: PostStatus
     published_at: datetime | None
@@ -84,6 +105,7 @@ class PostResponse(BaseModel):
     updated_at: datetime
     content: str | None
     description: str | None = None
+
 
 class CategoryPosts(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -95,13 +117,42 @@ class CategoryPosts(BaseModel):
 class CategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    name: str 
-    colour: str 
+    name: str
+    colour: str
     parent_category: int | None = None
-    
-    
+
+
+class CategoryCreate(BaseModel):
+    model_config= ConfigDict(from_attributes=True)
+    name: str 
+    color: str
+    description: str 
+    parent_category: int
+
+
 class CategoryPostResponse(BaseModel):
-    model_config= ConfigDict(from_attributes = True)
+    model_config = ConfigDict(from_attributes=True)
     posts: list[CategoryPosts]
-    category: CategoryResponse 
+    category: CategoryResponse
+
+
+class Question(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    question: str
+    category: int | None = None
+
+
+class SearchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    response: str
+    references: list[PostResponse] | None = None 
+
+class Reference(BaseModel):
+    title: str
+    url: str  # Use str or custom validation for 'viking://' URIs
+    relevance: str
+
+class LLMResponseSchema(BaseModel):
+    text: str
+    references: list[Reference] = Field(default_factory=list)
 
