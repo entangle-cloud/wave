@@ -11,6 +11,7 @@ from database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from routers.auth import router as auth_router
 from routers.ask import router as ask_router
+from routers.api import router as api_router
 from routers.posts import router as posts_router
 from routers.categories import router as categories_router
 from clients import viking_client
@@ -69,6 +70,7 @@ app.include_router(auth_router)
 app.include_router(ask_router)
 app.include_router(posts_router)
 app.include_router(categories_router)
+app.include_router(api_router)
 
 
 @app.get("/items/{item_id}")
