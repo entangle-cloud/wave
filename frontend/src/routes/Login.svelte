@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Button, Label } from "bits-ui";
   import { login } from "../store/authStore.svelte";
-  import { loadCategories } from "../store/categoryStore.svelte";
 
   let email = $state("");
   let password = $state("");
@@ -17,7 +16,6 @@
       if (!request) {
         error = true;
       } else {
-        await loadCategories();
         location.hash = "#/";
       }
     } finally {
