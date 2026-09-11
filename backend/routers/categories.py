@@ -36,12 +36,32 @@ class Category(BaseModel):
 
 @router.get("/categories")
 async def get_categories(user: CurrentUser, db: DB):
+    from sqlalchemy.orm import aliased
+    
     share_exists = exists().where(
         Share.category_id == CategoryModel.id, Share.user_id == user.id
     )
 
-    stmt = select(CategoryModel).where(
-        or_(CategoryModel.created_by_id == user.id, share_exists)
+    # Base case: explicitly granted categories (created or shared)
+    base_stmt = (
+        select(CategoryModel.id.label("id"))
+        .where(or_(CategoryModel.created_by_id == user.id, share_exists))
+        .cte(name="accessible_categories", recursive=True)
+    )
+
+    cat_alias = aliased(CategoryModel)
+
+    # Recursive step: subcategories of accessible categories
+    recursive_stmt = base_stmt.union_all(
+        select(cat_alias.id)
+        .join(base_stmt, cat_alias.parent_id == base_stmt.c.id)
+    )
+
+    # Fetch all matching categories, using distinct to remove duplicates
+    stmt = (
+        select(CategoryModel)
+        .join(recursive_stmt, CategoryModel.id == recursive_stmt.c.id)
+        .distinct()
     )
 
     result = await db.execute(stmt)
