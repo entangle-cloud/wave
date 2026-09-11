@@ -9,22 +9,25 @@
     editorContent,
     activeDoc,
   } from "../store/editorStore.svelte";
-  import { ensurePosts, postsByCategory } from "../store/sidebarStore.svelte";
+  import { ensurePosts } from "../store/sidebarStore.svelte";
+  import { replace } from "svelte-spa-router";
   import {
     categories,
     selectedCategoryId,
+    sortCategoriesForDisplay,
   } from "../store/categoryStore.svelte";
   import AngleDownFilledIcon from "@iconify-svelte/reicon/angle-down-filled";
   import ArrowsUpIcon from "@iconify-svelte/reicon/arrows-up";
   import ArrowsDownIcon from "@iconify-svelte/reicon/arrows-down";
   import { onMount } from "svelte";
-  import { mappedCategories } from "../lib/funcs";
   import CheckCircleDuotoneIcon from "@iconify-svelte/reicon/check-filled";
   import TrashIconFilled from "@iconify-svelte/reicon/trash-filled";
   import { userStore } from "../store/authStore.svelte";
-  import { z } from "zod";
+  import { json, z } from "zod";
   import MiniChatBox from "../lib/Components/MiniChatBox.svelte";
+  import { Combobox } from "bits-ui";
 
+  let categorySearchValue = $state("");
   let { params }: { params?: { id?: string } } = $props();
 
   const saveSchema = z.object({
@@ -54,7 +57,7 @@
 
   let meta = $state({
     id: 0,
-    title: "New Document",
+    title: "",
     tags: "",
     description: "",
     authorName: "",
@@ -62,8 +65,26 @@
     authorIsActive: true,
   });
 
+  const handleCategorySearchInput = (
+    e: Event & { currentTarget: HTMLInputElement },
+  ) => {
+    categorySearchValue = e.currentTarget.value;
+  };
+
+  const sortedCategories = $derived(sortCategoriesForDisplay($categories));
+
+  const filteredCategories = $derived(
+    categorySearchValue === ""
+      ? sortedCategories
+      : sortedCategories.filter((category) =>
+          category.name
+            .toLowerCase()
+            .includes(categorySearchValue.toLowerCase()),
+        ),
+  );
+
   const categoryItems = $derived(
-    $categories.map((category) => ({
+    sortedCategories.map((category) => ({
       value: category.id.toString(),
       label: category.name,
     })),
@@ -151,6 +172,8 @@
           }),
         },
       );
+      const jsonRequest = await request.json();
+      replace(`/docs/${jsonRequest.id}`);
     }
   };
 
@@ -201,8 +224,12 @@
   }
 
   onMount(async () => {
-    const mappedCategory = mappedCategories;
-    categories.set(mappedCategory);
+    if (!params?.id) {
+      replace("/docs/new");
+    }
+    // const mappedCategory = mappedCategories;
+    // categories.set(mappedCategory);
+
     const postId = params?.id;
     if (postId && postId !== "new") {
       // toast.promise(loadDocument(postId), {
@@ -221,8 +248,11 @@
     const postId = params?.id;
     if (postId && postId !== "new") {
       toast.promise(loadDocument(postId), {
-        success: ()=> {isLoading = false; return "Document loaded"},
-        error: ()=>"Error loading document",
+        success: () => {
+          isLoading = false;
+          return "Document loaded";
+        },
+        error: () => "Error loading document",
         loading: () => {
           isLoading = true;
           return "Loading document";
@@ -236,10 +266,12 @@
       meta.authorAvatar = $userStore?.avatar ? $userStore.avatar : "";
     }
   });
+
+  const isLoadingToggle = () => {};
 </script>
 
 <svelte:head>
-  <title>{meta.title} - 🌊 Wave</title>
+  <title>{meta.title ? meta.title : "New Document"} - 🌊 Wave</title>
 </svelte:head>
 
 <Toaster />
@@ -330,7 +362,7 @@
             </div>
           </div>
         </div>
-        <MiniChatBox />
+        <MiniChatBox documentId={params?.id} />
       </div>
     {/if}
   </div>
@@ -354,7 +386,11 @@
         class="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-4"
         onsubmit={(e) => {
           e.preventDefault();
-          saveDoc();
+          toast.promise(saveDoc(), {
+            loading: "Saving document",
+            success: "Document saved",
+            error: "Failed to save document",
+          });
         }}
       >
         <Label.Root class="form-control">
@@ -397,34 +433,40 @@
           <span class="label-text mb-1 block text-sm font-medium">Category</span
           >
 
-          <Select.Root
+          <Combobox.Root
             type="single"
             items={categoryItems}
             allowDeselect
             bind:value={getSelectedCategoryId, setSelectedCategoryId}
+            onOpenChangeComplete={(open) => {
+              if (!open) categorySearchValue = "";
+            }}
           >
-            <Select.Trigger
-              class="input input-bordered cursor-pointer flex w-full items-center"
-              aria-label="Select category"
-            >
-              <Select.Value placeholder="None" />
-              <AngleDownFilledIcon
-                class="size-6 opacity-60 ml-auto pointer-events-none"
+            <div class="relative w-full">
+              <Combobox.Input
+                oninput={handleCategorySearchInput}
+                class="input input-bordered w-full pr-9"
+                placeholder="None"
+                aria-label="Select category"
               />
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Content
-                sideOffset={6}
-                class="menu rounded-box z-50 max-h-64 min-w-(--bits-select-anchor-width) overflow-y-auto border border-base-300 bg-base-100 p-2 shadow-lg"
+              <Combobox.Trigger
+                class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                aria-label="Toggle category list"
               >
-                <Select.ScrollUpButton
-                  class="flex w-full items-center justify-center"
-                >
-                  <ArrowsUpIcon class="size-3" />
-                </Select.ScrollUpButton>
-                <Select.Viewport>
-                  {#each $categories as category (category.id)}
-                    <Select.Item
+                <AngleDownFilledIcon
+                  class="size-6 opacity-60 pointer-events-none"
+                />
+              </Combobox.Trigger>
+            </div>
+
+            <Combobox.Portal>
+              <Combobox.Content
+                sideOffset={6}
+                class="menu rounded-box z-50 flex max-h-64 min-w-(--bits-combobox-anchor-width) flex-col overflow-hidden border border-base-300 bg-base-100 p-2 shadow-lg"
+              >
+                <Combobox.Viewport class="min-h-0 flex-1 overflow-y-auto">
+                  {#each filteredCategories as category (category.id)}
+                    <Combobox.Item
                       value={category.id.toString()}
                       label="{category.parentId ? '— ' : ''}{category.name}"
                       class="rounded-button gap-2 data-highlighted:bg-muted outline-hidden data-disabled:opacity-50 flex h-10 w-full select-none items-center py-3 pl-5 pr-1.5 text-sm capitalize"
@@ -443,21 +485,16 @@
                           <CheckCircleDuotoneIcon class="size-4" />
                         {/if}
                       {/snippet}
-                    </Select.Item>
+                    </Combobox.Item>
                   {:else}
                     <div class="px-3 py-1.5 text-sm text-base-content/50">
-                      No categories yet
+                      No categories found
                     </div>
                   {/each}
-                </Select.Viewport>
-                <Select.ScrollDownButton
-                  class="flex w-full items-center justify-center"
-                >
-                  <ArrowsDownIcon class="size-3" />
-                </Select.ScrollDownButton>
-              </Select.Content>
-            </Select.Portal>
-          </Select.Root>
+                </Combobox.Viewport>
+              </Combobox.Content>
+            </Combobox.Portal>
+          </Combobox.Root>
           {#if errors.category.length > 0}
             <span class="text-error text-sm my-1.5">{errors.category}</span>
           {/if}
