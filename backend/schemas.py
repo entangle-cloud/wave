@@ -140,6 +140,7 @@ class Question(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     question: str
     category: int | None = None
+    referenceDocument: int | None = None
 
 
 class SearchResponse(BaseModel):
@@ -156,3 +157,12 @@ class LLMResponseSchema(BaseModel):
     text: str
     references: list[Reference] = Field(default_factory=list)
 
+class ActivityResponse(BaseModel):
+    postActivity: list[PostResponse] | None = None 
+
+class SharePaylod(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    collection: int 
+    shared_by: int
+    shared_users: list[int]
+    access_level: str | None = None
