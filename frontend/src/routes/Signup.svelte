@@ -57,7 +57,6 @@
         result.data.password,
       );
       if (request) {
-        await loadCategories();
         location.hash = "#/";
       } else {
         console.log(request);
