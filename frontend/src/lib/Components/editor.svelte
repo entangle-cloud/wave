@@ -1,9 +1,10 @@
 <script lang="ts">
   // ---------------------------------------------------------------------------
   // Imports
-// -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
   import { editorViewCtx } from "@milkdown/core";
-  import {replaceAll} from "@milkdown/utils"
+  import { replaceAll } from "@milkdown/utils";
+  import { patchMarkdown } from "../../lib/patchMarkdown";
   import { Crepe } from "@milkdown/crepe";
   import type { Node as PMNode } from "@milkdown/prose/model";
   import "@milkdown/crepe/theme/common/style.css";
@@ -48,8 +49,6 @@
   // ---------------------------------------------------------------------------
   // Component state
   // ---------------------------------------------------------------------------
-  
-  let {content= null} :{content?: string | null} = $props()
 
   /** Holds the Crepe editor instance once initialized */
   let crepeInstance: null | Crepe = $state<Crepe | null>(null);
@@ -96,7 +95,8 @@
     });
 
     const startIndex = blocks.findIndex(
-      (block) => block.node.type.name === "heading" && block.node.attrs.id === sectionId,
+      (block) =>
+        block.node.type.name === "heading" && block.node.attrs.id === sectionId,
     );
     if (startIndex === -1) return;
 
@@ -182,19 +182,19 @@
 
     crepe.editor.use(protectSectionPlugin);
     crepe.on((listener) => {
-      listener.markdownUpdated((ctx, md, prevMd)=> {
-        editorContent.set(md) 
-      })
+      listener.markdownUpdated((ctx, md, prevMd) => {
+        editorContent.set(md);
+      });
 
       listener.updated(() => {
-        const newTitle = getDocTitle()
+        const newTitle = getDocTitle();
         if (newTitle.length === 0) {
-          editorTitle.set(null)
+          editorTitle.set(null);
         } else {
-          editorTitle.set(newTitle)
+          editorTitle.set(newTitle);
         }
-      })
-    })
+      });
+    });
     crepe.create().then(() => {
       onReady?.(crepe);
       crepe.editor.action((ctx) => {
@@ -217,17 +217,30 @@
     crepeInstance = crepe;
   };
 
+  let editorSwapping = $state(false);
+
+  let lastAppliedMarkdown: string | null = null;
+
   $effect(() => {
-    const md = content 
-    const inst = crepeInstance
-    if (md && inst) {
-      inst.editor.action(replaceAll(md))
-      editorContent.set(md)
-      inst.editor.action((ctx) => {
-        ctx.get(editorViewCtx).focus()
-      })
+    const md = $editorContent;
+    const inst = crepeInstance;
+    if (!md || !inst) return;
+    if (md === lastAppliedMarkdown) {
+      return;
     }
-  })
+    lastAppliedMarkdown = md;
+    editorSwapping = true;
+
+    requestAnimationFrame(() => {
+      patchMarkdown(inst.editor, md);
+      requestAnimationFrame(() => {
+        inst.editor.action((ctx) => {
+          ctx.get(editorViewCtx).focus();
+        });
+        editorSwapping = false;
+      });
+    });
+  });
 
   // ---------------------------------------------------------------------------
   // Public API (exposed to parent components)
@@ -313,7 +326,10 @@
 </script>
 
 <!-- Mount point for the Crepe editor -->
-<div use:createEditor={{ onReady: handleReady }}></div>
+<div
+  class={editorSwapping ? "hidden" : ""}
+  use:createEditor={{ onReady: handleReady }}
+></div>
 
 <style>
   /* Style for locked blocks */

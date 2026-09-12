@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@iconify-svelte/flat-color-icons": "^1.0.2",
+    "@iconify-svelte/fluent-color": "^1.0.5",
     "@iconify-svelte/hugeicons": "^1.0.18",
+    "@iconify-svelte/ph": "^1.0.3",
     "@iconify-svelte/reicon": "^1.0.2",
     "@milkdown/crepe": "^7.22.1",
     "@milkdown/kit": "^7.22.1",
@@ -30,6 +32,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "bits-ui": "^2.19.0",
     "daisyui": "^5.7.20",
+    "dexie": "^4.4.6",
     "marked": "^18.0.11",
     "svelte-sonner": "^1.2.1",
     "svelte-spa-router": "^5.1.1",
