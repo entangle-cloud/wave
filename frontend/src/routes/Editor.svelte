@@ -5,8 +5,7 @@
   import { onMount } from "svelte";
   import { replace } from "svelte-spa-router";
   import { z } from "zod";
-  import { liveQuery } from "dexie";
-  import { get, type Readable } from "svelte/store";
+  import { type Document } from "../lib/db";
 
   // UI Components
   import { Button, ScrollArea, Dialog, Label, Avatar, Combobox } from "bits-ui";
@@ -372,11 +371,11 @@
     const generation = ++loadGeneration;
     isLoading = true;
     try {
-      const current = await db.documents.get(Number(postId)); 
+      const current = await db.documents.get(Number(postId));
       // Another document load started while this one was waiting.
       if (generation !== loadGeneration) return;
       if (current) {
-        console.info("loaded from database")
+        console.info("loaded from database");
         editorContent.set(current.content);
         documentTitle = current.title;
         documentDescription = current.description;
@@ -384,7 +383,7 @@
         authorName = current.createdByName;
         setSelectedCategoryId(current.categoryId.toString());
       }
-      activeDoc.set(postId); 
+      activeDoc.set(postId);
       // Don't let an old refresh update the newly selected document.
       void refreshFromServer(postId, current, generation);
     } catch (e) {
@@ -398,11 +397,10 @@
     }
   }
 
+
   async function refreshFromServer(
     postId: string,
-    current: typeof db.documents extends { get(id: number): Promise<infer T> }
-      ? T | undefined
-      : never,
+    current: Document| undefined,
     generation: number,
   ) {
     try {
@@ -413,7 +411,7 @@
       if (generation !== loadGeneration) return;
       if (!request.ok) return;
       const requestJson = await request.json();
-       // The request may have completed while another document was selected.
+      // The request may have completed while another document was selected.
       if (generation !== loadGeneration) return;
       authorAvatar = requestJson.author_avatar;
       authorIsActive = requestJson.author_active;
@@ -425,7 +423,7 @@
         localUpdated === undefined || localUpdated !== serverUpdated;
       if (!serverIsNewer) {
         return;
-      } 
+      }
       // Check again before changing editor state.
       if (generation !== loadGeneration) return;
       editorContent.set(requestJson.content);
@@ -439,7 +437,7 @@
         requestJson.author_name,
         requestJson.created_at,
         requestJson.updated_at,
-      ); 
+      );
       // Don't let an old request overwrite the current document.
       if (generation !== loadGeneration) return;
       loadedContent = requestJson.content;
@@ -448,7 +446,7 @@
       authorName = requestJson.author_name;
       documentDescription = requestJson.description;
       setSelectedCategoryId(requestJson.category_id.toString());
-      console.info("loaded from server")
+      console.info("loaded from server");
     } catch (e) {
       if (generation === loadGeneration) {
         console.log(e);
