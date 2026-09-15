@@ -2,13 +2,21 @@
   // ==========================================
   // Imports
   // ==========================================
-  import { onMount } from "svelte";
-  import { replace } from "svelte-spa-router";
+  import { onMount, onDestroy } from "svelte";
+  import { push, replace } from "svelte-spa-router";
   import { z } from "zod";
   import { type Document } from "../lib/db";
 
   // UI Components
-  import { Button, ScrollArea, Dialog, Label, Avatar, Combobox } from "bits-ui";
+  import {
+    Button,
+    AlertDialog,
+    ScrollArea,
+    Dialog,
+    Label,
+    Avatar,
+    Combobox,
+  } from "bits-ui";
   import { Toaster, toast } from "svelte-sonner";
   import Editor from "../lib/Components/editor.svelte";
   import MiniChatBox from "../lib/Components/MiniChatBox.svelte";
@@ -20,6 +28,7 @@
   import TrashIconFilled from "@iconify-svelte/reicon/trash-filled";
   import ArrowsUpIcon from "@iconify-svelte/reicon/arrows-up";
   import ArrowsDownIcon from "@iconify-svelte/reicon/arrows-down";
+  import Tag2DuotoneIcon from "@iconify-svelte/reicon/tag2-duotone";
 
   // Stores and Libs
   import { apiFetch } from "../lib/api";
@@ -28,6 +37,7 @@
     editorTitle,
     editorContent,
     activeDoc,
+    documentLoading,
   } from "../store/editorStore.svelte";
   import { ensurePosts } from "../store/sidebarStore.svelte";
   import {
@@ -85,14 +95,11 @@
   /** Component reference to the Editor instance */
   let editorRef: Editor;
 
-  /** String content of the document being loaded into the editor */
-  let loadedContent = $state<string | null>(null);
+  let dialogAlertOpen = $state(false);
+  let isDeleting = $state(false);
 
   /** Whether the document save modal is currently open */
   let saveOpen = $state(false);
-
-  /** Indicates if the document is currently loading */
-  let isLoading = $state(false);
 
   /** Tracks input value for the category selection combobox */
   let categorySearchValue = $state("");
@@ -160,9 +167,17 @@
       // });
     } else {
       editorTitle.set(null);
-      loadedContent = null;
+      editorContent.set("#");
       activeDoc.set(null);
+      setSelectedCategoryId("0");
     }
+  });
+
+  onDestroy(() => {
+    editorTitle.set(null);
+    editorContent.set("#");
+    activeDoc.set(null);
+    setSelectedCategoryId("0");
   });
 
   /**
@@ -172,20 +187,21 @@
   $effect(() => {
     const postId = params?.id;
     if (postId && postId !== "new") {
+      editorContent.set("#");
       toast.promise(loadDocument(postId), {
         success: () => {
-          isLoading = false;
+          documentLoading.set(false);
           return "Document loaded";
         },
         error: () => "Error loading document",
         loading: () => {
-          isLoading = true;
+          documentLoading.set(true);
           return "Loading document";
         },
       });
     } else {
       editorTitle.set(null);
-      loadedContent = "#";
+      editorContent.set("#");
       activeDoc.set(null);
       authorName = $userStore?.name ? $userStore.name : "";
       authorAvatar = $userStore?.avatar ? $userStore.avatar : "";
@@ -306,9 +322,22 @@
 
       if (request.ok) {
         await ensurePosts(Number(getSelectedCategoryId()));
-      }
+        const jsonRequest = await request.json();
+        console.log(jsonRequest);
 
-      console.log(await request.json());
+        await addDocumentToLocalDB(
+          jsonRequest.id,
+          jsonRequest.title,
+          $editorContent ? $editorContent : "",
+          documentDescription,
+          Number(getSelectedCategoryId()),
+          jsonRequest.created_by,
+          authorName,
+          jsonRequest.created_at,
+          jsonRequest.updated_at,
+        );
+        await replace(`/docs/${jsonRequest.id}`);
+      }
     } else if (params && params.id !== "new") {
       const request = await apiFetch(
         `${import.meta.env.VITE_API_ENDPOINT}/posts/${documentId}`,
@@ -339,7 +368,6 @@
         jsonRequest.created_at,
         jsonRequest.updated_at,
       );
-      replace(`/docs/${jsonRequest.id}`);
     }
   };
 
@@ -348,6 +376,7 @@
    * @param {number} id - The ID of the document to delete
    */
   const deleteDocument = async (id: number) => {
+    isDeleting = true;
     const request = await apiFetch(
       `${import.meta.env.VITE_API_ENDPOINT}/posts/${id}`,
       {
@@ -358,7 +387,13 @@
 
     if (request.ok) {
       console.log("delete successful");
+      await push("/");
+      dialogAlertOpen = false;
+      db.documents.delete(Number(params?.id))
       await ensurePosts(Number(getSelectedCategoryId()));
+    } else {
+      dialogAlertOpen = false;
+      isDeleting = false;
     }
   };
 
@@ -369,7 +404,7 @@
   let loadGeneration = 0;
   async function loadDocument(postId: string) {
     const generation = ++loadGeneration;
-    isLoading = true;
+    documentLoading.set(true);
     try {
       const current = await db.documents.get(Number(postId));
       // Another document load started while this one was waiting.
@@ -392,15 +427,14 @@
       }
     } finally {
       if (generation === loadGeneration) {
-        isLoading = false;
+        documentLoading.set(false);
       }
     }
   }
 
-
   async function refreshFromServer(
     postId: string,
-    current: Document| undefined,
+    current: Document | undefined,
     generation: number,
   ) {
     try {
@@ -432,7 +466,7 @@
         requestJson.title,
         requestJson.content,
         requestJson.description,
-        Number(getSelectedCategoryId()),
+        requestJson.category_id,
         requestJson.author_id,
         requestJson.author_name,
         requestJson.created_at,
@@ -440,7 +474,7 @@
       );
       // Don't let an old request overwrite the current document.
       if (generation !== loadGeneration) return;
-      loadedContent = requestJson.content;
+      editorContent.set(requestJson.content);
       documentTitle = requestJson.title;
       documentId = requestJson.id;
       authorName = requestJson.author_name;
@@ -462,6 +496,44 @@
 <svelte:head>
   <title>{documentTitle ? documentTitle : "New Document"} - 🌊 Wave</title>
 </svelte:head>
+
+<AlertDialog.Root bind:open={dialogAlertOpen}>
+  <AlertDialog.Portal>
+    <AlertDialog.Overlay
+      class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80"
+    />
+    <AlertDialog.Content
+      class="card card-lg bg-white data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 outline-hidden fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border p-7 sm:max-w-lg md:w-full "
+    >
+      <div class="flex flex-col gap-4 pb-6">
+        <AlertDialog.Title class="text-lg font-semibold tracking-tight">
+          Are you sure?
+        </AlertDialog.Title>
+        <AlertDialog.Description class="text-foreground-alt text-sm">
+          This will delete the selected document permanently. This action cannot
+          be undone.
+        </AlertDialog.Description>
+      </div>
+      <div class="flex w-full items-center justify-end gap-2">
+        <AlertDialog.Cancel class="btn btn-neutral">Cancel</AlertDialog.Cancel>
+        <AlertDialog.Action
+          disabled={isDeleting === true}
+          onclick={() => {
+            if (params) deleteDocument(Number(params.id));
+          }}
+          class="btn btn-error"
+        >
+          {#if isDeleting}
+            <span class="loading loading-sm"></span>
+            Deleting...
+          {:else}
+            Confirm
+          {/if}
+        </AlertDialog.Action>
+      </div>
+    </AlertDialog.Content>
+  </AlertDialog.Portal>
+</AlertDialog.Root>
 
 <Toaster />
 <div
@@ -509,7 +581,7 @@
         {#if params && params?.id !== "new"}
           <li>
             <Button.Root
-              onclick={() => deleteDocument(Number(params.id))}
+              onclick={() => (dialogAlertOpen = true)}
               class="btn btn-soft btn-error btn-sm"
             >
               <TrashIconFilled class="size-4" />
@@ -536,7 +608,7 @@
       </ScrollArea.Scrollbar>
       <ScrollArea.Corner />
     </ScrollArea.Root>
-    {#if params?.id !== "new" && isLoading === false}
+    {#if params?.id !== "new" && $documentLoading === false}
       <div
         class="h-full py-4 flex flex-col bg-olive-50 col-span-3 justify-end duration-2000 transition-all transform"
       >
@@ -611,7 +683,6 @@
         <div class="form-control">
           <span class="label-text mb-1 block text-sm font-medium">Category</span
           >
-
           <Combobox.Root
             type="single"
             items={categoryItems}
@@ -622,58 +693,65 @@
             }}
           >
             <div class="relative w-full">
-              <Combobox.Input
-                oninput={handleCategorySearchInput}
-                class="input input-bordered w-full pr-9"
-                placeholder="None"
-                aria-label="Select category"
-              />
-              <Combobox.Trigger
-                class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                aria-label="Toggle category list"
-              >
-                <AngleDownFilledIcon
-                  class="size-6 opacity-60 pointer-events-none"
+              <div class="relative">
+                <Tag2DuotoneIcon
+                  class="text-muted-foreground absolute inset-s-3 top-1/2 size-6 z-40 -translate-y-1/2"
                 />
-              </Combobox.Trigger>
-            </div>
+                <Combobox.Input
+                  oninput={handleCategorySearchInput}
+                  class="input px-9 input-bordered w-full pr-9"
+                  placeholder={filteredCategories.find(
+                    (value) => value.id.toString() === $selectedCategoryId,
+                  )?.name ?? "None"}
+                  aria-label="Select category"
+                />
+                <Combobox.Trigger
+                  class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                  aria-label="Toggle category list"
+                >
+                  <AngleDownFilledIcon
+                    class="size-6 opacity-60 pointer-events-none"
+                  />
+                </Combobox.Trigger>
+              </div>
 
-            <Combobox.Portal>
-              <Combobox.Content
-                sideOffset={6}
-                class="menu rounded-box z-50 flex max-h-64 min-w-(--bits-combobox-anchor-width) flex-col overflow-hidden border border-base-300 bg-base-100 p-2 shadow-lg"
-              >
-                <Combobox.Viewport class="min-h-0 flex-1 overflow-y-auto">
-                  {#each filteredCategories as category (category.id)}
-                    <Combobox.Item
-                      value={category.id.toString()}
-                      label="{category.parentId ? '— ' : ''}{category.name}"
-                      class="rounded-button gap-2 data-highlighted:bg-muted outline-hidden data-disabled:opacity-50 flex h-10 w-full select-none items-center py-3 pl-5 pr-1.5 text-sm capitalize"
-                    >
-                      {#snippet children({ selected })}
-                        <span
-                          class="size-2 shrink-0 rounded-full"
-                          style="background:{category.color}"
-                        ></span>
-                        <span
-                          class="truncate {selected ? 'font-semibold' : ''}"
-                        >
-                          {category.parentId ? "— " : ""}{category.name}
-                        </span>
-                        {#if selected}
-                          <CheckCircleDuotoneIcon class="size-4" />
-                        {/if}
-                      {/snippet}
-                    </Combobox.Item>
-                  {:else}
-                    <div class="px-3 py-1.5 text-sm text-base-content/50">
-                      No categories found
-                    </div>
-                  {/each}
-                </Combobox.Viewport>
-              </Combobox.Content>
-            </Combobox.Portal>
-          </Combobox.Root>
+              <Combobox.Portal>
+                <Combobox.Content
+                  sideOffset={6}
+                  class="menu rounded-box z-50 flex max-h-64 min-w-(--bits-combobox-anchor-width) flex-col overflow-hidden border border-base-300 bg-base-100 p-2 shadow-lg"
+                >
+                  <Combobox.Viewport class="min-h-0 flex-1 overflow-y-auto">
+                    {#each filteredCategories as category (category.id)}
+                      <Combobox.Item
+                        value={category.id.toString()}
+                        label="{category.parentId ? '— ' : ''}{category.name}"
+                        class="rounded-button gap-2 data-highlighted:bg-muted outline-hidden data-disabled:opacity-50 flex h-10 w-full select-none items-center py-3 pl-5 pr-1.5 text-sm capitalize"
+                      >
+                        {#snippet children({ selected })}
+                          <span
+                            class="size-2 shrink-0 rounded-full"
+                            style="background:{category.color}"
+                          ></span>
+                          <span
+                            class="truncate {selected ? 'font-semibold' : ''}"
+                          >
+                            {category.parentId ? "— " : ""}{category.name}
+                          </span>
+                          {#if selected}
+                            <CheckCircleDuotoneIcon class="size-4" />
+                          {/if}
+                        {/snippet}
+                      </Combobox.Item>
+                    {:else}
+                      <div class="px-3 py-1.5 text-sm text-base-content/50">
+                        No categories found
+                      </div>
+                    {/each}
+                  </Combobox.Viewport>
+                </Combobox.Content>
+              </Combobox.Portal>
+            </div></Combobox.Root
+          >
           {#if errors.category.length > 0}
             <span class="text-error text-sm my-1.5">{errors.category}</span>
           {/if}
