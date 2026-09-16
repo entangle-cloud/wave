@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Collapsible } from "bits-ui";
   import { categories } from "../../store/categoryStore.svelte";
-  import{activeDoc} from "../../store/editorStore.svelte"
-  import {router} from "svelte-spa-router"
-  import DocumentTextIcon from "@iconify-svelte/reicon/document-duotone";
+  import { activeDoc } from "../../store/editorStore.svelte";
+  import { router } from "svelte-spa-router";
+  import FileTextThinIcon from "@iconify-svelte/ph/file-text-thin";
   import {
     ensurePosts,
     postsByCategory,
@@ -71,7 +71,9 @@
   {@const open = !!openIds[id]}
   <Collapsible.Root {open} onOpenChange={(v) => handleOpenChange(node, v)}>
     <div
-      class="{node.category.parentId === null ? "mt-2" : ""} flex items-center rounded-box pr-1 px-2 hover:bg-base-content/10"
+      class="{node.category.parentId === null
+        ? 'mt-2'
+        : ''} flex items-center rounded-box pr-1 px-2 hover:bg-base-content/10"
     >
       <a
         href="#/categories/{id}"
@@ -134,11 +136,13 @@
         <li class="transform transition-transform duration-300 ease-in-out">
           <a
             href="#/docs/{post.id}"
-            class="rounded-box {isActiveDoc(post.id) ? 'bg-olive-200' : ''} font-light"
+            class="rounded-box {isActiveDoc(post.id)
+              ? 'bg-olive-200'
+              : ''} font-light"
             style="padding-left:{(depth + 2) * 12}px"
             title={post.title}
           >
-            <DocumentTextIcon class="size-4.5" />
+            <FileTextThinIcon class="size-4.5" />
             <span class="truncate">{post.title}</span>
           </a>
         </li>
