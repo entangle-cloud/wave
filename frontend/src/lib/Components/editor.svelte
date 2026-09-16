@@ -3,14 +3,31 @@
   // Imports
   // -----------------------------------------------------------------------------
   import { editorViewCtx } from "@milkdown/core";
-  import { replaceAll } from "@milkdown/utils";
-  import { patchMarkdown } from "../../lib/patchMarkdown";
+  import { replaceMarkdown } from "../../lib/patchMarkdown";
   import { Crepe } from "@milkdown/crepe";
   import type { Node as PMNode } from "@milkdown/prose/model";
   import "@milkdown/crepe/theme/common/style.css";
-  import "@milkdown/crepe/theme/frame.css";
+  // import "@milkdown/crepe/theme/frame.css";
   import { protectSectionPlugin } from "../plugins/proseMirrorLock";
-  import { editorTitle, editorContent } from "../../store/editorStore.svelte";
+  import {
+    editorTitle,
+    editorContent,
+    activeDoc,
+  } from "../../store/editorStore.svelte";
+  import { tick, untrack } from "svelte";
+  import { patchMarkdownChunked } from "../patchMarkdown";
+
+  /**
+   * Single-document editor instance. The parent route destroys and recreates
+   * this component per document (`{#key docId}`), so each Milkdown/Crepe
+   * instance only ever owns ONE document: it mounts already seeded with
+   * `initialContent` (single parse, no cross-doc diff), and only applies
+   * same-doc server refreshes after that.
+   */
+  let {
+    docId = null,
+    initialContent = "#",
+  }: { docId?: string | null; initialContent?: string } = $props();
 
   /**
    * Collaborative document editor component using Milkdown/Crepe.
@@ -53,12 +70,27 @@
   /** Holds the Crepe editor instance once initialized */
   let crepeInstance: null | Crepe = $state<Crepe | null>(null);
 
-  /** Default markdown content used to seed the editor on mount. */
-  const DEFAULT_CONTENT = "#";
+  /** True once `crepe.create()` has resolved for this mount. */
+  let editorReady = $state(false);
+
+  /** True while a same-doc server refresh is being applied. */
+  let isApplyingRemote = $state(false);
 
   /** Placeholder text shown when the document is empty. */
   const PLACEHOLDER_TEXT = "Start typing...";
 
+  let isLocalChange = $state(false);
+  // Set while we apply a server refresh so the resulting
+  // `markdownUpdated` event doesn't echo back into the store.
+  let suppressRemoteEcho = false;
+  // Seeded from the mount prop: the store already holds this content,
+  // so the apply effect skips it (no double parse on mount).
+  // Snapshot via closure on purpose — the seed is fixed for this mount.
+  let lastAppliedMarkdown: string | null = untrack(() => initialContent);
+  let lastTitle: string | null = null;
+  let applyGeneration = 0;
+  // Set on teardown so a late `crepe.create()` never publishes state.
+  let disposed = false;
   // ---------------------------------------------------------------------------
   // Internal helpers
   // ---------------------------------------------------------------------------
@@ -158,20 +190,39 @@
   // ---------------------------------------------------------------------------
 
   /**
-   * Creates and initializes the Crepe editor instance.
+   * Toggle ProseMirror editability without recreating the editor.
+   * Used to lock the UI while a server refresh is applied.
+   */
+  const setEditable = (editable: boolean) => {
+    const inst = crepeInstance;
+    if (!inst) return;
+    try {
+      inst.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.setProps({ editable: () => editable });
+      });
+    } catch {
+      // Editor may be mid-mount/teardown; ignore.
+    }
+  };
+
+  /**
+   * Creates and initializes the Crepe editor instance, seeded with this
+   * document's content (single parse at construction, no cross-doc diff).
    * Used via Svelte's `use:` directive so the DOM element is passed in.
    *
    * @param dom - The DOM element to mount the editor to.
    * @param onReady - Optional callback fired when editor is ready.
-   * @returns Object with destroy method for cleanup.
+   * @returns Object with destroy method for cleanup (single destroy path).
    */
   const createEditor = (
     dom: HTMLElement,
     { onReady }: { onReady?: (crepe: Crepe) => void } = {},
   ) => {
+    const seed = initialContent;
     const crepe = new Crepe({
       root: dom,
-      defaultValue: DEFAULT_CONTENT,
+      defaultValue: seed,
       featureConfigs: {
         [Crepe.Feature.Placeholder]: {
           text: PLACEHOLDER_TEXT,
@@ -183,11 +234,23 @@
     crepe.editor.use(protectSectionPlugin);
     crepe.on((listener) => {
       listener.markdownUpdated((ctx, md, prevMd) => {
+        if (disposed || suppressRemoteEcho) return;
+        if (md.trim() === prevMd.trim()) return;
+        // Avoid notifying when a server refresh is in flight, or when this
+        // instance no longer owns the active document.
+        if (isApplyingRemote) return;
+        if (untrack(() => $activeDoc) !== docId) {
+          return;
+        }
+        isLocalChange = true;
         editorContent.set(md);
       });
 
       listener.updated(() => {
+        if (disposed) return;
         const newTitle = getDocTitle();
+        if (newTitle === lastTitle) return;
+        lastTitle = newTitle;
         if (newTitle.length === 0) {
           editorTitle.set(null);
         } else {
@@ -195,16 +258,37 @@
         }
       });
     });
+
     crepe.create().then(() => {
+      if (disposed) {
+        try {
+          crepe.destroy();
+        } catch {
+          // Ignore teardown races.
+        }
+        return;
+      }
       onReady?.(crepe);
-      crepe.editor.action((ctx) => {
-        ctx.get(editorViewCtx).focus();
-      });
+      // Only steal focus for a brand-new document; focusing during a
+      // route switch forces scroll/layout and feels like a freeze.
+      if (docId === "new") {
+        crepe.editor.action((ctx) => {
+          ctx.get(editorViewCtx).focus();
+        });
+      }
     });
 
     return {
       destroy() {
-        crepe.destroy();
+        disposed = true;
+        applyGeneration++;
+        crepeInstance = null;
+        editorReady = false;
+        try {
+          crepe.destroy();
+        } catch {
+          // Ignore double-teardown from HMR/router.
+        }
       },
     };
   };
@@ -214,32 +298,69 @@
    * Stores the instance so later operations can access the editor.
    */
   const handleReady = (crepe: Crepe) => {
+    if (disposed) return;
     crepeInstance = crepe;
+    editorReady = true;
   };
 
-  let editorSwapping = $state(false);
+  /**
+   * Let the browser paint the loading skeleton before the blocking
+   * markdown parse runs, so the UI never appears frozen.
+   */
+  const yieldToPaint = () =>
+    new Promise<void>((resolve) => {
+      requestAnimationFrame(() => setTimeout(() => resolve(), 0));
+    });
 
-  let lastAppliedMarkdown: string | null = null;
-
+  // Same-document server refresh only. Cross-document switches are handled
+  // by the parent remounting this component (`{#key docId}`) with the new
+  // content already seeded — this effect never diffs across documents.
   $effect(() => {
     const md = $editorContent;
+    const activeId = $activeDoc;
     const inst = crepeInstance;
-    if (!md || !inst) return;
-    if (md === lastAppliedMarkdown) {
+    const ready = editorReady;
+    if (md == null || !inst || !ready || disposed) return;
+    if (activeId !== docId) return;
+    if (md === untrack(() => lastAppliedMarkdown)) return;
+
+    if (untrack(() => isLocalChange)) {
+      isLocalChange = false;
+      lastAppliedMarkdown = md;
       return;
     }
-    lastAppliedMarkdown = md;
-    editorSwapping = true;
 
-    requestAnimationFrame(() => {
-      patchMarkdown(inst.editor, md);
-      requestAnimationFrame(() => {
-        inst.editor.action((ctx) => {
-          ctx.get(editorViewCtx).focus();
-        });
-        editorSwapping = false;
-      });
-    });
+    const generation = ++applyGeneration;
+    // Claim synchronously so rapid successive refreshes discard stale work.
+    lastAppliedMarkdown = md;
+
+    (async () => {
+      isApplyingRemote = true;
+      setEditable(false);
+      await tick();
+      await yieldToPaint();
+      if (generation !== applyGeneration || disposed) return;
+
+      suppressRemoteEcho = true;
+      try {
+        await untrack(() =>
+          patchMarkdownChunked(inst.editor, md, {
+            shouldContinue: () => generation === applyGeneration && !disposed,
+          }),
+        );
+      } finally {
+        suppressRemoteEcho = false;
+      }
+
+      if (generation !== applyGeneration || disposed) return;
+      lastTitle = null;
+      const newTitle = untrack(() => getDocTitle());
+      lastTitle = newTitle;
+      if (newTitle.length === 0) editorTitle.set(null);
+      else editorTitle.set(newTitle);
+      setEditable(true);
+      isApplyingRemote = false;
+    })();
   });
 
   // ---------------------------------------------------------------------------
@@ -326,10 +447,24 @@
 </script>
 
 <!-- Mount point for the Crepe editor -->
-<div
-  class={editorSwapping ? "hidden" : ""}
-  use:createEditor={{ onReady: handleReady }}
-></div>
+<div class="relative min-h-64">
+  {#if !editorReady || isApplyingRemote}
+    <div
+      class="absolute inset-0 z-10 flex flex-col gap-3 bg-white/80 p-6 backdrop-blur-[1px]"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div class="skeleton h-8 w-2/5"></div>
+      <div class="skeleton h-4 w-full"></div>
+      <div class="skeleton h-4 w-full"></div>
+      <div class="skeleton h-4 w-4/5"></div>
+      <div class="skeleton h-4 w-full"></div>
+      <div class="skeleton h-4 w-3/5"></div>
+      <span class="sr-only">Loading document…</span>
+    </div>
+  {/if}
+  <div class="w-9/10" use:createEditor={{ onReady: handleReady }}></div>
+</div>
 
 <style>
   /* Style for locked blocks */

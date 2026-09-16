@@ -92,8 +92,8 @@
   // State Variables
   // ==========================================
 
-  /** Component reference to the Editor instance */
-  let editorRef: Editor;
+  /** Component reference to the Editor instance (null while unmounted) */
+  let editorRef = $state<Editor | undefined>(undefined);
 
   let dialogAlertOpen = $state(false);
   let isDeleting = $state(false);
@@ -106,6 +106,17 @@
 
   /** Stores form validation errors */
   let errors = $state({ title: "", description: "", category: "" });
+
+  /**
+   * Mount seed for the editor. The editor is destroyed and recreated per
+   * document (`{#key}` in the template) and mounts already seeded with the
+   * document's content — so route switches never diff one large document
+   * into another inside a live ProseMirror view (the previous freeze).
+   * Null while the document is loading (skeleton shows instead).
+   * Set exactly once per document; later server refreshes update the
+   * `editorContent` store in place and must NOT remount (would lose typing).
+   */
+  let editorMount = $state<{ docId: string | null; seed: string } | null>(null);
 
   /**
    * Metadata associated with the current document
@@ -167,27 +178,37 @@
       // });
     } else {
       editorTitle.set(null);
-      editorContent.set("#");
       activeDoc.set(null);
+      editorContent.set("#");
+      editorMount = { docId: "new", seed: "#" };
       setSelectedCategoryId("0");
     }
   });
 
   onDestroy(() => {
     editorTitle.set(null);
-    editorContent.set("#");
     activeDoc.set(null);
+    editorContent.set("#");
+    editorMount = null;
     setSelectedCategoryId("0");
   });
 
   /**
    * Reactively fetches the document anytime the route parameter `id` changes.
    * Cleans up editor stores if creating a new document.
+   *
+   * NOTE: no intermediate `editorContent.set("#")` here — clearing to "#"
+   * before the real content caused 2 full synchronous parse+diff+render
+   * passes per route switch and froze the UI on large docs. The editor shows
+   * a loading skeleton via `documentLoading` instead.
    */
   $effect(() => {
     const postId = params?.id;
     if (postId && postId !== "new") {
-      editorContent.set("#");
+      documentLoading.set(true);
+      // Unmount the previous document's editor synchronously so its
+      // ProseMirror view is fully destroyed before the new one mounts.
+      editorMount = null;
       toast.promise(loadDocument(postId), {
         success: () => {
           documentLoading.set(false);
@@ -201,8 +222,9 @@
       });
     } else {
       editorTitle.set(null);
-      editorContent.set("#");
       activeDoc.set(null);
+      editorContent.set("#");
+      editorMount = { docId: null, seed: "#" };
       authorName = $userStore?.name ? $userStore.name : "";
       authorAvatar = $userStore?.avatar ? $userStore.avatar : "";
     }
@@ -389,7 +411,7 @@
       console.log("delete successful");
       await push("/");
       dialogAlertOpen = false;
-      db.documents.delete(Number(params?.id))
+      db.documents.delete(Number(params?.id));
       await ensurePosts(Number(getSelectedCategoryId()));
     } else {
       dialogAlertOpen = false;
@@ -411,14 +433,21 @@
       if (generation !== loadGeneration) return;
       if (current) {
         console.info("loaded from database");
+        // Set activeDoc BEFORE content so the editor sees the doc switch
+        // atomically and takes the fast full-replace path exactly once.
+        activeDoc.set(postId);
         editorContent.set(current.content);
+        // Mount (or remount, if the key changed) the editor already seeded
+        // with this document's content — single parse, no cross-doc diff.
+        editorMount = { docId: postId, seed: current.content };
         documentTitle = current.title;
         documentDescription = current.description;
         documentId = current.id;
         authorName = current.createdByName;
         setSelectedCategoryId(current.categoryId.toString());
+      } else {
+        activeDoc.set(postId);
       }
-      activeDoc.set(postId);
       // Don't let an old refresh update the newly selected document.
       void refreshFromServer(postId, current, generation);
     } catch (e) {
@@ -460,7 +489,6 @@
       }
       // Check again before changing editor state.
       if (generation !== loadGeneration) return;
-      editorContent.set(requestJson.content);
       await addDocumentToLocalDB(
         requestJson.id,
         requestJson.title,
@@ -473,8 +501,15 @@
         requestJson.updated_at,
       );
       // Don't let an old request overwrite the current document.
+      // Single content set (was duplicated) — one parse+apply only.
+      // Never touches `editorMount`: a mounted editor applies this via its
+      // same-doc refresh path; an unmounted one (Dexie miss) mounts now.
       if (generation !== loadGeneration) return;
+      activeDoc.set(postId);
       editorContent.set(requestJson.content);
+      if (!editorMount || editorMount.docId !== postId) {
+        editorMount = { docId: postId, seed: requestJson.content };
+      }
       documentTitle = requestJson.title;
       documentId = requestJson.id;
       authorName = requestJson.author_name;
@@ -596,7 +631,29 @@
   <div class="grid gap-2 flex-1 min-h-0 grid-cols-10">
     <ScrollArea.Root class="min-h-0 col-span-7 flex-1 pb-6">
       <ScrollArea.Viewport class="size-full">
-        <Editor bind:this={editorRef} />
+        {#if editorMount}
+          {#key editorMount.docId}
+            <Editor
+              bind:this={editorRef}
+              docId={editorMount.docId}
+              initialContent={editorMount.seed}
+            />
+          {/key}
+        {:else}
+          <div
+            class="flex flex-col gap-3 p-6"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div class="skeleton h-8 w-2/5"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-4/5"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-3/5"></div>
+            <span class="sr-only">Loading document…</span>
+          </div>
+        {/if}
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar
         orientation="vertical"
