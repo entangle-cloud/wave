@@ -127,7 +127,7 @@ class CategoryCreate(BaseModel):
     name: str 
     color: str
     description: str 
-    parent_category: int
+    parent_category: int | None = None
 
 
 class CategoryPostResponse(BaseModel):
@@ -135,18 +135,6 @@ class CategoryPostResponse(BaseModel):
     posts: list[CategoryPosts]
     category: CategoryResponse
 
-
-class Question(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    question: str
-    category: int | None = None
-    referenceDocument: int | None = None
-
-
-class SearchResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    response: str
-    references: list[PostResponse] | None = None 
 
 class Reference(BaseModel):
     title: str
@@ -166,3 +154,37 @@ class SharePaylod(BaseModel):
     shared_by: int
     shared_users: list[int]
     access_level: str | None = None
+    
+class SettingsPayload(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    key: str 
+    value: str 
+    description: str | None = None 
+    is_secret: bool = False
+
+class EmailPayload(BaseModel):
+    model_config=ConfigDict(from_attributes=True)
+    from_address: str
+    to: str 
+    subject: str
+    content: str
+    
+class EditProposal(BaseModel):
+    section_id: str
+    markdown: str
+    base_version: int | None = None
+
+class SectionIn(BaseModel):
+    id: str
+    markdown: str
+
+class Question(BaseModel):
+    question: str
+    referenceDocument: int | None = None
+    sections: list[SectionIn] | None = None     # current editor content, split by section
+    base_version: str | int | None = None
+
+class SearchResponse(BaseModel):
+    response: str
+    references: list[PostResponse]
+    edits: list[EditProposal] = []

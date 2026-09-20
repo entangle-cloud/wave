@@ -36,16 +36,19 @@
   import {
     editorTitle,
     editorContent,
+    docVersion,
     activeDoc,
     documentLoading,
   } from "../store/editorStore.svelte";
-  import { ensurePosts } from "../store/sidebarStore.svelte";
+  import { ensurePosts, postsByCategory } from "../store/sidebarStore.svelte";
   import {
     categories,
     selectedCategoryId,
     sortCategoriesForDisplay,
   } from "../store/categoryStore.svelte";
   import { userStore } from "../store/authStore.svelte";
+  import { miniChatResponses } from "../store/chatStore.svalte";
+  import { marked } from "marked";
 
   // ==========================================
   // Types & Schemas
@@ -343,10 +346,20 @@
       );
 
       if (request.ok) {
-        await ensurePosts(Number(getSelectedCategoryId()));
-        const jsonRequest = await request.json();
-        console.log(jsonRequest);
+        const updatedList = $postsByCategory[
+          Number(getSelectedCategoryId())
+        ].map((item) =>
+          item.id === Number(params.id)
+            ? { ...item, title: $editorTitle ?? "Untitled" }
+            : item,
+        );
 
+        postsByCategory.update((map) => ({
+          ...map,
+          [Number(getSelectedCategoryId())]: updatedList,
+        }));
+
+        const jsonRequest = await request.json();
         await addDocumentToLocalDB(
           jsonRequest.id,
           jsonRequest.title,
@@ -379,6 +392,19 @@
         },
       );
       const jsonRequest = await request.json();
+
+      const updatedList = $postsByCategory[Number(getSelectedCategoryId())].map(
+        (item) =>
+          item.id === Number(params.id)
+            ? { ...item, title: $editorTitle ?? "Untitled" }
+            : item,
+      );
+
+      postsByCategory.update((map) => ({
+        ...map,
+        [Number(getSelectedCategoryId())]: updatedList,
+      }));
+
       await addDocumentToLocalDB(
         jsonRequest.id,
         jsonRequest.title,
@@ -444,6 +470,7 @@
         documentDescription = current.description;
         documentId = current.id;
         authorName = current.createdByName;
+        docVersion.set(1)
         setSelectedCategoryId(current.categoryId.toString());
       } else {
         activeDoc.set(postId);
@@ -515,6 +542,7 @@
       authorName = requestJson.author_name;
       documentDescription = requestJson.description;
       setSelectedCategoryId(requestJson.category_id.toString());
+      docVersion.set(requestJson.updated_at)
       console.info("loaded from server");
     } catch (e) {
       if (generation === loadGeneration) {
@@ -667,20 +695,48 @@
     </ScrollArea.Root>
     {#if params?.id !== "new" && $documentLoading === false}
       <div
-        class="h-full py-4 flex flex-col bg-olive-50 col-span-3 justify-end duration-2000 transition-all transform"
+        class="h-full py-4 flex flex-col bg-olive-50 col-span-3 duration-2000 transition-all transform min-h-0"
       >
-        <div class="grow flex items-center px-4">
-          <div class="w-full">
-            <div class="card bg-olive-100">
-              <div class="card-body">
-                <p class="font-semibold text-olive-600">
-                  Use AI to find infomration or do anything with the document.
-                </p>
+        <ScrollArea.Root class="flex-1 min-h-0 pb-4">
+          <ScrollArea.Viewport class="size-full">
+            <div class="flex flex-col justify-end min-h-full">
+              <div class="grow flex items-center px-4">
+                {#if $miniChatResponses.length === 0}
+                  <div class="w-full">
+                    <div class="card bg-olive-100">
+                      <div class="card-body">
+                        <p class="font-semibold text-olive-600">
+                          Use AI to find information or do anything with the document.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
               </div>
+              {#if $miniChatResponses.length > 0}
+                <div id="responses" class="px-4 flex flex-col gap-4">
+                {#each $miniChatResponses as response}
+                <div class="bg-olive-100 card">
+                  <div class="card-body text-olive-600 prose">
+                    {@html marked(response)}
+                  </div>
+                </div>
+                {/each}
+                </div>
+              {/if}
             </div>
-          </div>
-        </div>
-        <MiniChatBox documentId={params?.id} />
+          </ScrollArea.Viewport>
+          <ScrollArea.Scrollbar
+            orientation="vertical"
+            class="flex w-2.5 touch-none select-none rounded-bl-md p-0.5 transition-colors hover:bg-base-200"
+          >
+            <ScrollArea.Thumb
+              class="relative flex-1 rounded-full bg-base-content/25"
+            />
+          </ScrollArea.Scrollbar>
+          <ScrollArea.Corner />
+        </ScrollArea.Root>
+        <MiniChatBox categoryId={undefined} documentId={params?.id} />
       </div>
     {/if}
   </div>
