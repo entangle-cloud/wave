@@ -1,5 +1,7 @@
 # 🌊 Wave
 
+<img width="152" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" />
+
 Cut through the clutter. A knowledge hub for humans and your AI agents to find information. Always up-to date with agents and human moderation.
 
 
