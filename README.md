@@ -2,9 +2,9 @@
 
 <img width="152" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" />
 
-Cut through the clutter. A knowledge hub for humans and your AI agents to find information. Always up-to date with agents and human moderation.
+Cut through the clutter. A knowledge hub for humans and AI agents to find information when you need them. No scrolling through scattered folders, wikis, and documents.
 
-
+**Always up-to date with agents and human moderation.**
 
 ## Features
 
