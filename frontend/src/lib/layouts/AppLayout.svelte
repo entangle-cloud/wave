@@ -31,7 +31,8 @@
     >
       <div class="flex items-center justify-between bg-olive-100 gap-2 p-4">
         <span class="truncate text-lg font-bold {open ? '' : 'hidden'}"
-          >🌊 Entangle</span
+          >
+          <a href="/#/">🌊 Entangle</a></span
         >
         <Collapsible.Trigger
           class="btn btn-ghost btn-square btn-sm shrink-0"
