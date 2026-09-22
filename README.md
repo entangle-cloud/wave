@@ -1,15 +1,62 @@
-# 🌊 Wave by Entangle - Knowledge base for agents and humans
+# 🌊 Wave
 
-<img width="256" height="256" alt="wave" src="https://github.com/user-attachments/assets/330dde7b-12c0-428e-bdb2-772726b3a6d3" />
+Cut through the clutter. A knowledge hub for humans and your AI agents to find information. Always up-to date with agents and human moderation.
 
-![GitHub License](https://img.shields.io/github/license/entangle-cloud/wave)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/w/entangle-cloud/wave)
-![X (formerly Twitter) URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fx.com%2Fentangle-cloud)
 
-Wave by Entangle is an AI powered knowledge base built for AI agents and humans. 
 
-Replacing traditional company knowledge base with modern agent driven knowledge base with information available to you when you need them.
+## Features
 
+- Beautiful distraction free Markdown editor with user collaboration
+- Content categorization with sharing with users
+- Agent memory with virtual file-system support
+- Bring your own keys for LLM and S3 storage
+- Self hosted and Entangle Cloud host support
+
+## Environment Variables
+
+To run this project, you will need to add the following environment variables to your `.env` file in the frontend and backend
+
+### Frontend env variables 
+
+Replace with Wave backend url
+
+`VITE_API_ENDPOINT="http://localhost:3000`
+
+### Backend env variables 
+
+`OPENVIKING_TOKEN="YOUR OPEN VIKIN TOKEN"`
+
+`DATABASE_URL="POSTGRES DATABASE_URL"`
+
+`OPENVIKING_MCP_URL="OPENVIKIN MCP ENDPOINT"`
+
+`OPENVIKING_ENDPOINT="OPEN VIKING ENDPOINT"`
+
+`JWT_SECRET="xxxxxx"`
+
+`ACCESS_TOKEN_EXPIRE_MINUTES=60`
+
+`R2_ACCESS_KEY="S3 BUCKET ACCESS KEY"`
+
+`R2_ACCESS_SECRET="S3 BUCKET ACCESS SECRET"`
+
+`R2_ENDPOINT="S3 ENDPOINT"`
+
+`BUCKET_NAME="S3 BUCKET NAME"`
+
+`GEMINI_API_KEY="GEMINI API KEY"`
+
+`MODEL="models/gemini-3.8-flash"`
+
+
+## Roadmap
+
+- Wave MCP API Endpoint for agent workflows
+
+- Improving user interface
+
+
+    
 ## Architecture 
 
 ```mermaid
@@ -22,11 +69,3 @@ flowchart TD
     B -->|Media Storage| G[S3 Storage]
     D --> G 
 ```
-
-### Frontend 
-
-Milkdown based markdown / WSIWYG editor. UI designed with Tailwind CSS.
-
-### Back-end
-
-Fast API based python back-end.
