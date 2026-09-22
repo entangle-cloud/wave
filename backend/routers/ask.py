@@ -86,7 +86,9 @@ def parse_and_validate_yaml(raw_response: str) -> LLMResponseSchema:
     return LLMResponseSchema.model_validate(raw_dict)
 
 
-def mcp_tools_to_gemini_tool(mcp_tools, allow_edit: bool = False) -> types.Tool:
+def mcp_tools_to_gemini_tool(
+    mcp_tools, allow_edit: bool = False, allow_search: bool = False
+) -> types.Tool:
     """Convert MCP tools to a single Gemini Tool.
 
     Only the read-only allow-list is taken from MCP, which is what enforces the
@@ -107,6 +109,10 @@ def mcp_tools_to_gemini_tool(mcp_tools, allow_edit: bool = False) -> types.Tool:
     ]
     if allow_edit:
         declarations.append(EDIT_DECL)
+    if allow_search:
+        return types.Tool(
+            function_declarations=declarations, google_search=types.GoogleSearch()
+        )
     return types.Tool(function_declarations=declarations)
 
 
@@ -147,6 +153,7 @@ async def ask(
     referenceDocument=None,
     sections: list[SectionIn] | None = None,
     base_version: int | None = None,
+    allow_search: bool = False,
 ) -> SearchResponse:
 
     # --- Build the prompt -------------------------------------------------
@@ -199,19 +206,16 @@ async def ask(
         await session.initialize()
 
         mcp_tools = (await session.list_tools()).tools
-        gemini_tool = mcp_tools_to_gemini_tool(mcp_tools, allow_edit=allow_edit)
-        print(
-            "allow_edit:",
-            allow_edit,
-            "| tools:",
-            [d.name for d in gemini_tool.function_declarations],
-            "| prompt has edit section:",
-            "edit_section" in system_prompt,
+        gemini_tool = mcp_tools_to_gemini_tool(
+            mcp_tools, allow_edit=allow_edit, allow_search=allow_search
         )
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
             tools=[gemini_tool],
+            tool_config=types.ToolConfig(include_server_side_tool_invocations=True)
+            if allow_search
+            else None,
         )
 
         # Async client so the event loop isn't blocked
@@ -253,8 +257,10 @@ async def ask(
                     result = await call_mcp_tool(session, fc.name, args)
 
                 response_parts.append(
-                    types.Part.from_function_response(
-                        name=fc.name, response={"result": result}
+                    types.Part(
+                        function_response=types.FunctionResponse(
+                            name=fc.name, response={"result": result}, id=fc.id
+                        )
                     )
                 )
 
@@ -337,4 +343,5 @@ async def ask_agent(payload: Question, user: CurrentUser, db: DB, request: Reque
         referenceDocument=payload.referenceDocument,
         sections=payload.sections,
         base_version=payload.base_version,
+        allow_search=payload.research_mode,
     )

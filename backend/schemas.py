@@ -183,6 +183,7 @@ class Question(BaseModel):
     referenceDocument: int | None = None
     sections: list[SectionIn] | None = None     # current editor content, split by section
     base_version: str | int | None = None
+    research_mode: bool | None = False
 
 class SearchResponse(BaseModel):
     response: str
