@@ -1,6 +1,14 @@
 # 🌊 Wave
 <img width="6912" height="3456" alt="Wave (1)" src="https://github.com/user-attachments/assets/cfb2e529-bb5e-4675-ab32-d94568b43cc0" />
-<img width="152" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" />
+
+<p align="left">
+  <a href="https://github.com/entangle-cloud/wave">
+      <img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" style="vertical-align: middle;" />
+  </a>
+<a href="https://discord.gg/gRwxBDrN7v">
+      <img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/discord.svg" style="vertical-align: middle;" />
+</a>
+</p>
 
 Cut through the clutter. A knowledge hub for humans and AI agents to find information when you need them. No scrolling through scattered folders, wikis, and documents.
 
