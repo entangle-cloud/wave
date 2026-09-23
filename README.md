@@ -19,6 +19,11 @@ Cut through the clutter. A knowledge hub for humans and AI agents to find inform
 - Bring your own keys for LLM and S3 storage
 - Self hosted and Entangle Cloud host support
 
+## Screenshots
+
+<img width="1393" height="995" alt="image" src="https://github.com/user-attachments/assets/6a698af7-a355-47df-9266-0929020c5221" />
+
+
 ## Environment Variables
 
 To run this project, you will need to add the following environment variables to your `.env` file in the frontend and backend
@@ -44,3 +49,22 @@ R2_ENDPOINT="S3 ENDPOINT"
 BUCKET_NAME="S3 BUCKET NAME"
 GEMINI_API_KEY="GEMINI API KEY"
 MODEL="models/gemini-3.8-flash"
+```
+
+## Roadmap
+
+- [ ] Wave MCP API Endpoint for agent workflows
+- [ ] Improving user interface
+    
+## Architecture 
+
+```mermaid
+flowchart TD
+    A[Frontend] --> B(API - Fast API)
+    B -->|Metadata| D[Postgres Database]
+    B -->|Agent Memory| C[OpenViking]
+    B -->|Agent Workflow| E[Your LLM]
+    E --> C
+    B -->|Media Storage| G[S3 Storage]
+    D --> G 
+```
