@@ -1,17 +1,14 @@
 # 🌊 Wave
-<img width="6912" height="3456" alt="Wave (1)" src="https://github.com/user-attachments/assets/cfb2e529-bb5e-4675-ab32-d94568b43cc0" />
+<img width="6912" height="3456" alt="Wave by Entangle" src="https://github.com/user-attachments/assets/cfb2e529-bb5e-4675-ab32-d94568b43cc0" />
 
-<p align="left">
-  <span>
+<p>
   <a title="Star the repository and support" href="https://github.com/entangle-cloud/wave">
-      <img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" style="vertical-align: middle;" />
+    <img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" style="vertical-align: middle;" />
   </a>
-  </span>
-  <span>
-<a title="Join our discord server" href="https://discord.gg/gRwxBDrN7v">
-      <img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/discord.svg" style="vertical-align: middle;" />
-</a>
-  </span>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a title="Join our discord server" href="https://discord.gg/gRwxBDrN7v">
+    <img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/discord.svg" style="vertical-align: middle;" />
+  </a>
 </p>
 
 Cut through the clutter. A knowledge hub for humans and AI agents to find information when you need them. No scrolling through scattered folders, wikis, and documents.
@@ -51,24 +48,3 @@ R2_ENDPOINT="S3 ENDPOINT"
 BUCKET_NAME="S3 BUCKET NAME"
 GEMINI_API_KEY="GEMINI API KEY"
 MODEL="models/gemini-3.8-flash"
-```
-
-## Roadmap
-
-- [ ] Wave MCP API Endpoint for agent workflows
-- [ ] Improving user interface
-
-
-    
-## Architecture 
-
-```mermaid
-flowchart TD
-    A[Frontend] --> B(API - Fast API)
-    B -->|Metadata| D[Postgres Database]
-    B -->|Agent Memory| C[OpenViking]
-    B -->|Agent Workflow| E[Your LLM]
-    E --> C
-    B -->|Media Storage| G[S3 Storage]
-    D --> G 
-```
