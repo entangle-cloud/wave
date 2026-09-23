@@ -5,6 +5,8 @@
   <a title="Star the repository and support" href="https://github.com/entangle-cloud/wave"><img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/star.svg" /></a>
   &nbsp;&nbsp;
   <a title="Join our discord server" href="https://discord.gg/gRwxBDrN7v"><img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/discord.svg" /></a>
+   &nbsp;&nbsp;
+  <a title="Join our discord server" href="https://docs.entangle.ch"><img height="36" src="https://github.com/entangle-cloud/wave/raw/refs/heads/main/docs/docs.svg" /></a>
 </p>
 
 Cut through the clutter. A knowledge hub for humans and AI agents to find information when you need them. No scrolling through scattered folders, wikis, and documents.
