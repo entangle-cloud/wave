@@ -131,7 +131,7 @@
                       </p>
                       <div>
                         <a
-                          class="btn btn-xs btn-ghost"
+                          class="btn btn-xs rounded-md btn-ghost"
                           href={`/#/docs/${reference.id}`}>Visit</a
                         >
                       </div>

@@ -36,7 +36,7 @@
   };
 </script>
 
-<div class="grow bg-base-100 h-full">
+<div class="bg-base-100">
   <div class="mx-auto max-w-5xl">
     <div class="card w-9/10">
       <div class="card-body">
