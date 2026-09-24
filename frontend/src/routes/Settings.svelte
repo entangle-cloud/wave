@@ -3,7 +3,9 @@
   import { z } from "zod";
   import { Avatar, Button, Label } from "bits-ui";
   import { updateProfile } from "../store/authStore.svelte";
-  import { Toaster , toast} from "svelte-sonner";
+  import { Toaster, toast } from "svelte-sonner";
+  import { apiFetch } from "../lib/api";
+  import Setting2Icon from "@iconify-svelte/reicon/setting2";
 
   let name = $state("");
   let email = $state("");
@@ -15,26 +17,52 @@
   let errors = $state<Partial<Record<"name" | "email" | "avatar", string>>>({});
   let errorMessage = $state("");
 
+  let smtp_endpoint = $state("");
+  let smtp_password = $state("");
+  let advancedErrors = $state<
+    Partial<Record<"smtp_endpoint" | "smtp_password", string>>
+  >({});
+  let advancedSubmitting = $state(false);
+
   const settingsSchema = z.object({
     name: z.string().trim().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Enter a valid email address"),
-    avatar: z.custom<File>((val) => val instanceof File, "Invalid file").refine(
-      (file) => !file || file.size <= 2 * 1024 * 1024,
-      "Avatar must be less than 2MB"
-    ).optional()
+    avatar: z
+      .custom<File>((val) => val instanceof File, "Invalid file")
+      .refine(
+        (file) => !file || file.size <= 2 * 1024 * 1024,
+        "Avatar must be less than 2MB",
+      )
+      .optional(),
   });
 
   type Field = "name" | "email" | "avatar";
+  type AdvancedField = "smtp_endpoint" | "smtp_password";
+
+  const advancedSettingsSchema = z.object({
+    smtp_endpoint: z.url("Enter a valid URL"),
+    smtp_password: z.string().min(1, "SMTP password is required"),
+  });
+
+  const validateAdvancedField = (field: AdvancedField) => {
+    const val = field === "smtp_endpoint" ? smtp_endpoint : smtp_password;
+    const result = advancedSettingsSchema.shape[field].safeParse(val);
+    advancedErrors = {
+      ...advancedErrors,
+      [field]: result.success ? undefined : result.error.issues[0].message,
+    };
+  };
 
   const validateField = (field: Field, value?: unknown) => {
-    const val = value ?? (field === "name" ? name : field === "email" ? email : avatarFile);
+    const val =
+      value ??
+      (field === "name" ? name : field === "email" ? email : avatarFile);
     const result = settingsSchema.shape[field].safeParse(val);
     errors = {
       ...errors,
       [field]: result.success ? undefined : result.error.issues[0].message,
     };
   };
-
 
   const updateAvatar = (e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -70,16 +98,20 @@
   onMount(() => {
     loading = true;
     toast.promise(request, {
-      success: "Settings loaded", 
+      success: "Settings loaded",
       loading: "Loading settings",
-      error: errorMessage
-    })
+      error: errorMessage,
+    });
   });
 
   const handleSubmit = async (event: SubmitEvent) => {
     event.preventDefault();
 
-    const result = settingsSchema.safeParse({ name, email, avatar: avatarFile });
+    const result = settingsSchema.safeParse({
+      name,
+      email,
+      avatar: avatarFile,
+    });
     if (!result.success) {
       const fieldErrors: typeof errors = {};
       for (const issue of result.error.issues) {
@@ -93,7 +125,11 @@
     errors = {};
     submitting = true;
     try {
-      const success = await updateProfile(result.data.name, result.data.email, avatarFile);
+      const success = await updateProfile(
+        result.data.name,
+        result.data.email,
+        avatarFile,
+      );
       if (!success) {
         error = true;
       } else {
@@ -101,6 +137,46 @@
       }
     } finally {
       submitting = false;
+    }
+  };
+
+  const saveAdvancedSettings = async (event: SubmitEvent) => {
+    event.preventDefault();
+
+    const result = advancedSettingsSchema.safeParse({
+      smtp_endpoint,
+      smtp_password,
+    });
+
+    if (!result.success) {
+      const fieldErrors: typeof advancedErrors = {};
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as AdvancedField;
+        if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+      }
+      advancedErrors = fieldErrors;
+      return;
+    }
+
+    advancedErrors = {};
+    advancedSubmitting = true;
+    try {
+      // Implement advanced settings saving logic here
+      await apiFetch(`${import.meta.env.VITE_API_ENDPOINT}/settings`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          key: smtp_endpoint,
+          value: smtp_password,
+        }),
+      });
+      toast.success("Advanced settings saved");
+    } catch (e) {
+      toast.error("Failed to save advanced settings");
+    } finally {
+      advancedSubmitting = false;
     }
   };
 </script>
@@ -112,19 +188,15 @@
 <Toaster />
 
 <div class="mx-auto max-w-5xl">
-  <div class="mt-8 space-y-4">
+  <div class="mt-8 card card-border border-olive-200">
     <div class="card-body">
-      <h2 class="font-semibold text-xl">Settings</h2>
+      <h2 class="card-title">Account Settings</h2>
       {#if error}
         <div class="alert my-4 alert-error alert-soft">
           {errorMessage}
         </div>
       {/if}
-      <form
-        onsubmit={handleSubmit}
-        novalidate
-        class="space-y-4 grid grid-cols-2"
-      >
+      <form onsubmit={handleSubmit} novalidate class="grid grid-cols-2">
         <div>
           <div class="fieldset grid gap-1">
             <Label.Root for="name" class="fieldset-legend">Name</Label.Root>
@@ -201,7 +273,7 @@
                   </div>
                 </Avatar.Root>
                 <Button.Root
-                  class="btn btn-soft btn-sm"
+                  class="btn btn-soft btn-sm rounded-md"
                   onclick={() => document.getElementById("avatar")?.click()}
                   >Change avatar</Button.Root
                 >
@@ -209,21 +281,32 @@
             </div>
           </div>
         </div>
-        <div>
+        <div class="mt-2 card-actions">
           <Button.Root
             type="submit"
-            class="btn btn-primary"
+            class="btn rounded-md btn-neutral btn-sm"
             disabled={submitting}
           >
             {#if submitting}
               <span class="loading loading-spinner loading-sm"></span>
               Saving...
             {:else}
-              Save Changes
+              Update Profile
             {/if}
           </Button.Root>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="card card-border border-olive-200 mt-8 bg-white">
+    <div class="card-body">
+      <h2 class="card-title">Categories</h2>
+
+      <a class="underline flex items-center gap-2" href="/#/categories/">
+        <Setting2Icon class="size-4 shrink-0" />
+        <span>Manage Categories and Access</span>
+      </a>
     </div>
   </div>
 </div>
