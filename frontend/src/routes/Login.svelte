@@ -30,8 +30,8 @@
 <h2 class="card-title mb-4 justify-center">Log in</h2>
 
 <form onsubmit={handleSubmit} class="flex flex-col gap-3">
-  <div class="form-control w-full">
-    <Label.Root for="login-email" class="label-text mb-1">Email</Label.Root>
+<div class="fieldset w-full">
+    <Label.Root for="login-email" class="label">Email</Label.Root>
     <input
       id="login-email"
       type="email"
@@ -42,8 +42,8 @@
     />
   </div>
 
-  <div class="form-control w-full">
-    <Label.Root for="login-password" class="label-text mb-1"
+  <div class="fieldset w-full">
+    <Label.Root for="login-password" class="label"
       >Password</Label.Root
     >
     <input
@@ -56,7 +56,7 @@
     />
   </div>
 
-  <Button.Root type="submit" class="btn btn-primary mt-2" disabled={submitting}>
+  <Button.Root type="submit" class="btn btn-neutral rounded-lg mt-2" disabled={submitting}>
     {#if submitting}
       <span class="loading loading-spinner loading-sm"></span>
       Logging in...
@@ -64,7 +64,7 @@
       Log in
     {/if}
   </Button.Root>
-  <a href="#/signup" class="btn">Sign up</a>
+  <a href="#/signup" class="btn rounded-lg">Sign up</a>
 </form>
 
 {#if error}

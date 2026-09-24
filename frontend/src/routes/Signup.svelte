@@ -74,12 +74,12 @@
 <h2 class="card-title mb-4 justify-center">Create account</h2>
 
 <form onsubmit={handleSubmit} novalidate class="flex flex-col gap-3">
-  <div class="form-control w-full">
-    <Label.Root for="signup-name" class="label-text mb-1">Name</Label.Root>
+  <div class="fieldset w-full">
+    <Label.Root for="signup-name" class="label">Name</Label.Root>
     <input
       id="signup-name"
       type="text"
-      class="input input-bordered w-full {errors.name ? 'input-error' : ''}"
+      class="input rounded-md input-bordered w-full {errors.name ? 'input-error' : ''}"
       placeholder="Jane Doe"
       bind:value={name}
       onblur={() => validateField("name")}
@@ -91,8 +91,8 @@
     {/if}
   </div>
 
-  <div class="form-control w-full">
-    <Label.Root for="signup-email" class="label-text mb-1">Email</Label.Root>
+  <div class="fieldset w-full">
+    <Label.Root for="signup-email" class="label">Email</Label.Root>
     <input
       id="signup-email"
       type="email"
@@ -108,8 +108,8 @@
     {/if}
   </div>
 
-  <div class="form-control w-full">
-    <Label.Root for="signup-password" class="label-text mb-1">
+  <div class="form-control fieldset w-full">
+    <Label.Root for="signup-password" class="label">
       Password
     </Label.Root>
     <input
@@ -134,7 +134,11 @@
     {/if}
   </div>
 
-  <Button.Root type="submit" class="btn btn-primary mt-2" disabled={submitting}>
+  <Button.Root
+    type="submit"
+    class="btn rounded-lg btn-neutral mt-2"
+    disabled={submitting}
+  >
     {#if submitting}
       <span class="loading loading-spinner loading-sm"></span>
       Creating account...

@@ -466,7 +466,7 @@
                     >{participant.role}</span
                   >
                   <Button.Root
-                    class="btn btn-sm btn-ghost"
+                    class="btn btn-sm ronded-lg btn-ghost"
                     onclick={() => removeParticipant(participant)}
                     ><X class="size-4"></X></Button.Root
                   >
@@ -474,12 +474,12 @@
               {/each}
             </div>
             <div class="card-actions flex items-center mt-2">
-              <Dialog.Close disabled={pendingShare} class="btn btn-soft"
+              <Dialog.Close disabled={pendingShare} class="btn rounded-lg btn-soft"
                 >Cancel</Dialog.Close
               >
               <Button.Root
                 disabled={pendingShare}
-                class="btn btn-neutral"
+                class="btn rounded-lg btn-neutral"
                 onclick={() => {
                   share();
                 }}

@@ -578,13 +578,13 @@
         </AlertDialog.Description>
       </div>
       <div class="flex w-full items-center justify-end gap-2">
-        <AlertDialog.Cancel class="btn btn-neutral">Cancel</AlertDialog.Cancel>
+        <AlertDialog.Cancel class="btn rounded-lg btn-neutral">Cancel</AlertDialog.Cancel>
         <AlertDialog.Action
           disabled={isDeleting === true}
           onclick={() => {
             if (params) deleteDocument(Number(params.id));
           }}
-          class="btn btn-error"
+          class="btn rounded-lg btn-error"
         >
           {#if isDeleting}
             <span class="loading loading-sm"></span>
@@ -605,7 +605,7 @@
   <div class="navbar shrink-0 border-b border-base-200">
     <div class="flex-1 flex items-center">
       <div class="grow">
-        <a href="/#" class="btn btn-ghost text-xl"
+        <a href="/#" class="btn rounded-lg btn-ghost text-xl"
           >{documentTitle ?? "Untitled"}</a
         >
       </div>
@@ -634,7 +634,7 @@
       <ul class="menu menu-horizontal flex items-center px-1 gap-1.5">
         <li>
           <Button.Root
-            class="btn btn-primary btn-soft btn-sm"
+            class="btn rounded-lg btn-primary btn-soft btn-sm"
             onclick={openSaveSheet}
           >
             <SaveIcon class="size-4" />
@@ -645,7 +645,7 @@
           <li>
             <Button.Root
               onclick={() => (dialogAlertOpen = true)}
-              class="btn btn-soft btn-error btn-sm"
+              class="btn rounded-lg btn-soft btn-error btn-sm"
             >
               <TrashIconFilled class="size-4" />
               Delete
@@ -872,11 +872,11 @@
       </form>
 
       <div class="flex justify-end gap-2 border-t border-base-200 px-6 py-4">
-        <Dialog.Close class="btn btn-ghost">Cancel</Dialog.Close>
+        <Dialog.Close class="btn rounded-lg btn-ghost">Cancel</Dialog.Close>
         <Button.Root
           type="submit"
           form="save-form"
-          class="btn btn-primary btn-soft"
+          class="btn rounded-lg btn-primary btn-soft"
         >
           <SaveIcon height="1em" /> Save
         </Button.Root>
