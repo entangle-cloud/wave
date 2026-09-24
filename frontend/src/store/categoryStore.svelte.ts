@@ -6,7 +6,7 @@ export type Category = {
   name: string;
   parentId: number | null;
   color: string;
-  created_by?: number | null,
+  created_by?: number | null;
   description?: string;
 };
 
@@ -16,11 +16,11 @@ export const categories = writable<Category[]>(seedCategories);
 
 export const selectedCategoryId = writable<string | null>(null);
 
-export async function loadCategories() {
+export const loadCategories = async () => {
   try {
     const response = await apiFetch(
       `${import.meta.env.VITE_API_ENDPOINT}/category/categories`,
-      { credentials: "include" }
+      { credentials: "include" },
     );
     const data = await response.json();
     const mapped = data.map((c: any) => ({
@@ -35,4 +35,29 @@ export async function loadCategories() {
   } catch {
     categories.set([]);
   }
-}
+};
+
+export type CategoryNode = Category & { depth: number };
+
+export const sortCategoriesForDisplay = (
+  categories: Category[],
+): CategoryNode[] => {
+  const byParent = new Map<number | null, Category[]>();
+  for (const category of categories) {
+    const key = category.parentId;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(category);
+  }
+
+  const result: CategoryNode[] = [];
+
+  function walk(parentId: number | null, depth: number) {
+    for (const category of byParent.get(parentId) ?? []) {
+      result.push({ ...category, depth });
+      walk(category.id, depth + 1);
+    }
+  }
+
+  walk(null, 0);
+  return result;
+};

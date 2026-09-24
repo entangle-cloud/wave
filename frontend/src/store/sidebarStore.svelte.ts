@@ -37,7 +37,8 @@ export async function ensurePosts(categoryId: number) {
   try {
     const posts = await fetchPostsByCategory(categoryId);
     postsByCategory.update((map) => ({ ...map, [categoryId]: posts.posts }));
-  } catch {
+  } catch (e) {
+    console.log(e)
     failedCategories.add(categoryId);
     postsByCategory.update((map) => ({ ...map, [categoryId]: [] }));
   } finally {
