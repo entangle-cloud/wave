@@ -4,6 +4,7 @@
   import { activeDoc } from "../../store/editorStore.svelte";
   import { router } from "svelte-spa-router";
   import FileTextThinIcon from "@iconify-svelte/ph/file-text-thin";
+  import {mappedCategories} from '../funcs'
   import {
     ensurePosts,
     postsByCategory,
@@ -45,6 +46,7 @@
   });
 
   onMount(async () => {
+    categories.set(mappedCategories)
     for (const [id, isOpen] of Object.entries(openIds)) {
       if (isOpen) void ensurePosts(Number(id));
     }
@@ -76,7 +78,7 @@
         : ''} flex items-center rounded-box pr-1 px-2 hover:bg-base-content/10"
     >
       <a
-        href="#/categories/{id}"
+        href="/#/categories/{id}"
         title={node.category.name}
         class="flex min-w-0 flex-1 items-center gap-2 py-1.5 font-light text-base-content {collapsed &&
         depth > 0
@@ -135,7 +137,7 @@
       {#each posts as post (post.id)}
         <li class="transform transition-transform duration-300 ease-in-out">
           <a
-            href="#/docs/{post.id}"
+            href="/#/docs/{post.id}"
             class="rounded-box {isActiveDoc(post.id)
               ? 'bg-olive-200'
               : ''} font-light"
