@@ -1,7 +1,7 @@
 <script lang="ts">
   import { apiFetch } from "../api";
   import ArrowEnterLeft24RegularIcon from "@iconify-svelte/fluent/arrow-enter-left-24-regular";
-  import { Button } from "bits-ui";
+  import { Button, Switch, Label } from "bits-ui";
   import {
     documentLoading,
     docVersion,
@@ -12,7 +12,17 @@
   let question = $state("");
   let isLoading = $state(false);
   let responses = $state<string[]>([]);
-  let sentMarkdown = $state("")
+  let sentMarkdown = $state("");
+
+  let researchMode = $state(false);
+
+  function getChecked() {
+    return researchMode;
+  }
+
+  function setChecked(newChecked: boolean) {
+    researchMode = newChecked;
+  }
 
   const splitSections = (md: string) => {
     return md
@@ -23,7 +33,7 @@
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
-    sentMarkdown = $editorContent || ""
+    sentMarkdown = $editorContent || "";
     const documentSections = splitSections($editorContent || "");
     isLoading = true;
     if (question.trim().length === 0) return;
@@ -37,6 +47,7 @@
         referenceDocument: documentId,
         sections: documentSections,
         base_version: $docVersion,
+        research_mode: researchMode
       }),
     })
       .then((res) => res.json())
@@ -53,13 +64,16 @@
             return;
           }
           const byId = new Map(
-            data.edits.map((e: {section_id: string, markdown: string}) => [e.section_id, e.markdown]),
+            data.edits.map((e: { section_id: string; markdown: string }) => [
+              e.section_id,
+              e.markdown,
+            ]),
           );
           const next = documentSections
-            .map((s) => ((byId.get(s.id) ?? s.markdown)as string).trimEnd())
+            .map((s) => ((byId.get(s.id) ?? s.markdown) as string).trimEnd())
             .join("\n\n");
-          editorContent.set(next)
-          question = ""
+          editorContent.set(next);
+          question = "";
         }
       })
       .finally(() => (isLoading = false));
@@ -96,9 +110,26 @@
         placeholder="How can I help you?"
         bind:value={question}
       ></textarea>
-      <div class="h-10 flex justify-end">
+      <div class="h-10 items-center gap-2 flex justify-end">
+        <div
+          class=" items-center space-x-2 px-2 group-focus-within:flex hidden"
+        >
+          <Switch.Root
+            id="research"
+            bind:checked={getChecked, setChecked}
+            name="hello"
+            class="focus-visible:ring-black focus-visible:ring-offset-white data-[state=checked]:bg-black data-[state=unchecked]:bg-gray-200 data-[state=unchecked]:shadow-inner dark:data-[state=checked]:bg-white dark:data-[state=unchecked]:bg-gray-700 focus-visible:outline-none peer inline-flex h-6 min-h-6 w-10 shrink-0 cursor-pointer items-center rounded-full px-0.75 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Switch.Thumb
+              class="bg-white data-[state=unchecked]:shadow-sm dark:border-white/30 dark:bg-black dark:shadow-lg pointer-events-none block size-4 shrink-0 rounded-full transition-transform data-[state=checked]:translate-x-4.5 data-[state=unchecked]:translate-x-0 dark:border dark:data-[state=unchecked]:border"
+            />
+          </Switch.Root>
+          <Label.Root for="research" class="text-sm text-olive-700 font-medium"
+            >Research</Label.Root
+          >
+        </div>
         <div class="{isLoading ? 'aura' : ''} group-focus-within:block hidden">
-          <Button.Root class="btn btn-sm"
+          <Button.Root class="btn rounded-lg btn-sm"
             ><ArrowEnterLeft24RegularIcon class="size-4" /> Enter</Button.Root
           >
         </div>
