@@ -14,13 +14,15 @@ from typing import Annotated
 from routers.auth import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from mcp import ClientSession
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.database import get_db
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from database.post import Post
 from database.post import PostStatus
 from database.user import User
+from database.user_activity import UserActivity as DocumentActivity
 from database.category import Category
 from schemas import (
     PostCreate,
@@ -285,6 +287,18 @@ async def update_post(
         if payload.status == PostStatus.PUBLISHED and post.published_at is None:
             post.published_at = datetime.now(UTC)
 
+    if post.author_id is not user.id:
+        stmt = pg_insert(DocumentActivity).values(
+            user_id = user.id, 
+            post_id= post.id
+        )
+        upsert_stmt = stmt.on_conflict_do_update(
+            index_elements=[" post_id", "user_id"],
+            set_=dict(
+                last_edited_at = datetime.now()
+            )
+        )
+        db.execute(upsert_stmt)
     await db.commit()
     await db.refresh(post)
     return CreatePostResponse(
