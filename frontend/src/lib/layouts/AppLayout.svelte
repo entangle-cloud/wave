@@ -1,25 +1,25 @@
 <script lang="ts">
-  import { Collapsible } from "bits-ui";
+  import { Button, Collapsible } from "bits-ui";
   import SidebarRightIcon from "@iconify-svelte/reicon/sidebar-right";
   import SidebarLeftIcon from "@iconify-svelte/reicon/sidebar-left";
   import { userStore, logout } from "../../store/authStore.svelte";
   import SidebarTree from "../Components/SidebarTree.svelte";
   import Logout2DuotoneIcon from "@iconify-svelte/reicon/logout2-duotone";
-  import TuningSquareDuotoneIcon from '@iconify-svelte/reicon/tuning-square-duotone';
-  import {Avatar} from 'bits-ui'
+  import TuningSquareDuotoneIcon from "@iconify-svelte/reicon/tuning-square-duotone";
+  import Home6Icon from "@iconify-svelte/reicon/home6";
+  import AddSquareDuoTone from "@iconify-svelte/reicon/add-circle";
+  import { Avatar } from "bits-ui";
 
   let { children }: { children: import("svelte").Snippet } = $props();
 
   let open = $state(true);
 
   const navItems = [
-    { label: "Home", href: "#/" },
-    { label: "Docs", href: "#/docs" },
-    { label: "Categories", href: "#/categories" },
+    { icon: Home6Icon, label: "Home", href: "#/" },
+    { icon: AddSquareDuoTone, label: "New", href: "#/docs/new" },
   ];
 
   const user = $derived($userStore);
-
 </script>
 
 <div class="flex h-screen w-full overflow-hidden bg-olive-100">
@@ -30,8 +30,7 @@
         : 'w-16'}"
     >
       <div class="flex items-center justify-between bg-olive-100 gap-2 p-4">
-        <span class="truncate text-lg font-bold {open ? '' : 'hidden'}"
-          >
+        <span class="truncate text-lg font-bold {open ? '' : 'hidden'}">
           <a href="/#/">🌊 Entangle</a></span
         >
         <Collapsible.Trigger
@@ -55,10 +54,11 @@
               <li>
                 <a
                   href={item.href}
-                  class={open ? "" : "justify-center"}
+                  class="{open ? '' : 'justify-center'} flex items-center gap-2"
                   title={item.label}
                 >
-                  <span>{item.label}</span>
+                  <item.icon class="size-4 shrink-0" />
+                  <span class="leading-none">{item.label}</span>
                 </a>
               </li>
             {/each}
@@ -106,7 +106,9 @@
               class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-transparent"
             >
               <Avatar.Image src={user?.avatar} alt={user?.name} />
-              <Avatar.Fallback class="border-muted border uppercase">{user?.name[0]}</Avatar.Fallback>
+              <Avatar.Fallback class="border-muted border uppercase"
+                >{user?.name[0]}</Avatar.Fallback
+              >
             </div>
           </Avatar.Root>
           {#if open}
@@ -118,9 +120,12 @@
                 {user?.email ?? ""}
               </div>
             </div>
-              <a href="/#/settings" class="btn btn-ghost btn-square btn-sm shrink-0">
-                <TuningSquareDuotoneIcon class="size-4" />
-              </a>
+            <a
+              href="/#/settings"
+              class="btn btn-ghost btn-square btn-sm shrink-0"
+            >
+              <TuningSquareDuotoneIcon class="size-4" />
+            </a>
             <button
               class="btn btn-ghost btn-square btn-sm shrink-0"
               title="Log out"
