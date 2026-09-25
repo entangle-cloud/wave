@@ -36,6 +36,7 @@ class UserUpdate(BaseModel):
 
     email: EmailStr
     name: str
+    password: str | None = None
     role: UserRole | None = None
     is_active: bool | None = None
 
@@ -45,8 +46,9 @@ def user_update_form(
     name: str = Form(...),
     role: UserRole | None = Form(None),
     is_active: bool | None = Form(None),
+    password: str | None = Form(None)
 ) -> UserUpdate:
-    return UserUpdate(email=email, name=name, role=role, is_active=is_active)
+    return UserUpdate(email=email, name=name, role=role, is_active=is_active, password=password)
 
 
 class TokenResponse(BaseModel):

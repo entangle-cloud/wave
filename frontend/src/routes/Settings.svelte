@@ -12,51 +12,51 @@
   let avatar = $state("");
   let avatarFile = $state<File | null>(null);
   let error = $state(false);
+  let password = $state("");
   let loading = $state(false);
   let submitting = $state(false);
-  let errors = $state<Partial<Record<"name" | "email" | "avatar", string>>>({});
-  let errorMessage = $state("");
-
-  let smtp_endpoint = $state("");
-  let smtp_password = $state("");
-  let advancedErrors = $state<
-    Partial<Record<"smtp_endpoint" | "smtp_password", string>>
+  let errors = $state<
+    Partial<Record<"name" | "email" | "avatar" | "password", string>>
   >({});
-  let advancedSubmitting = $state(false);
+  let errorMessage = $state("");
 
   const settingsSchema = z.object({
     name: z.string().trim().min(2, "Name must be at least 2 characters"),
-    email: z.string().email("Enter a valid email address"),
+    email: z.email("Enter a valid email address"),
+    password: z
+      .string()
+      .optional()
+      .refine((val) => !val || val.length >= 10, {
+        message: "Password must be at least 10 characters",
+      })
+      .refine((val) => !val || /[A-Z]/.test(val), {
+        message: "Must include an uppercase letter",
+      })
+      .refine((val) => !val || /[0-9]/.test(val), {
+        message: "Must include a number",
+      }),
     avatar: z
       .custom<File>((val) => val instanceof File, "Invalid file")
       .refine(
         (file) => !file || file.size <= 2 * 1024 * 1024,
         "Avatar must be less than 2MB",
       )
+      .nullable()
       .optional(),
   });
 
-  type Field = "name" | "email" | "avatar";
-  type AdvancedField = "smtp_endpoint" | "smtp_password";
-
-  const advancedSettingsSchema = z.object({
-    smtp_endpoint: z.url("Enter a valid URL"),
-    smtp_password: z.string().min(1, "SMTP password is required"),
-  });
-
-  const validateAdvancedField = (field: AdvancedField) => {
-    const val = field === "smtp_endpoint" ? smtp_endpoint : smtp_password;
-    const result = advancedSettingsSchema.shape[field].safeParse(val);
-    advancedErrors = {
-      ...advancedErrors,
-      [field]: result.success ? undefined : result.error.issues[0].message,
-    };
-  };
+  type Field = "name" | "email" | "avatar" | "password";
 
   const validateField = (field: Field, value?: unknown) => {
     const val =
       value ??
-      (field === "name" ? name : field === "email" ? email : avatarFile);
+      (field === "password"
+        ? password
+        : field === "name"
+          ? name
+          : field === "email"
+            ? email
+            : avatarFile);
     const result = settingsSchema.shape[field].safeParse(val);
     errors = {
       ...errors,
@@ -78,10 +78,7 @@
     }
   };
 
-  const request = fetch(`${import.meta.env.VITE_API_ENDPOINT}/auth/me`, {
-    method: "GET",
-    credentials: "include",
-  })
+  const request = apiFetch(`${import.meta.env.VITE_API_ENDPOINT}/auth/me`)
     .then((res) => res.json())
     .then((data) => {
       name = data.name;
@@ -95,6 +92,7 @@
     .finally(() => {
       loading = false;
     });
+
   onMount(() => {
     loading = true;
     toast.promise(request, {
@@ -110,9 +108,11 @@
     const result = settingsSchema.safeParse({
       name,
       email,
+      password,
       avatar: avatarFile,
     });
     if (!result.success) {
+      console.log(result.error);
       const fieldErrors: typeof errors = {};
       for (const issue of result.error.issues) {
         const field = issue.path[0] as Field;
@@ -128,6 +128,7 @@
       const success = await updateProfile(
         result.data.name,
         result.data.email,
+        result.data.password,
         avatarFile,
       );
       if (!success) {
@@ -137,46 +138,6 @@
       }
     } finally {
       submitting = false;
-    }
-  };
-
-  const saveAdvancedSettings = async (event: SubmitEvent) => {
-    event.preventDefault();
-
-    const result = advancedSettingsSchema.safeParse({
-      smtp_endpoint,
-      smtp_password,
-    });
-
-    if (!result.success) {
-      const fieldErrors: typeof advancedErrors = {};
-      for (const issue of result.error.issues) {
-        const field = issue.path[0] as AdvancedField;
-        if (!fieldErrors[field]) fieldErrors[field] = issue.message;
-      }
-      advancedErrors = fieldErrors;
-      return;
-    }
-
-    advancedErrors = {};
-    advancedSubmitting = true;
-    try {
-      // Implement advanced settings saving logic here
-      await apiFetch(`${import.meta.env.VITE_API_ENDPOINT}/settings`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          key: smtp_endpoint,
-          value: smtp_password,
-        }),
-      });
-      toast.success("Advanced settings saved");
-    } catch (e) {
-      toast.error("Failed to save advanced settings");
-    } finally {
-      advancedSubmitting = false;
     }
   };
 </script>
@@ -212,7 +173,7 @@
               aria-invalid={!!errors.name}
             />
             <span class="fieldset-label"
-              >Your name displyed in the application</span
+              >The name displayed in the application</span
             >
             {#if errors.name}
               <span class="mt-1 text-xs text-error">{errors.name}</span>
@@ -235,10 +196,33 @@
               oninput={() => errors.email && validateField("email")}
               aria-invalid={!!errors.email}
             />
-            <span class="fieldset-label">Your email address used to login</span>
+            <span class="fieldset-label"
+              >The email address you use to sign in</span
+            >
             {#if errors.email}
               <span class="mt-1 text-xs text-error">{errors.email}</span>
             {/if}
+          </div>
+          <div class="fieldset grid gap-1">
+            <Label.Root for="password" class="fieldset-legend">
+              Change Password
+            </Label.Root>
+            <input
+              id="password"
+              autocomplete="off"
+              type="password"
+              name="password"
+              class="input w-full {errors.password ? 'input-error' : ''}"
+              placeholder="Your new password"
+              bind:value={password}
+              onblur={() => validateField("password")}
+              oninput={() => errors.password && validateField("password")}
+              aria-invalid={!!errors.password}
+            />
+            {#if errors.password}
+              <span class="mt-1 text-xs text-error">{errors.password}</span>
+            {/if}
+            <span class="fieldset-label">Change your login password</span>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ from fastapi import (
     Response,
     Request,
     UploadFile,
+    File,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
@@ -16,7 +17,7 @@ from datetime import datetime, timedelta, UTC
 
 import bcrypt
 import jwt
-from typing import Annotated
+from typing import Annotated, Union
 
 from database.database import get_db
 from database.user import User, UserRole
@@ -211,10 +212,10 @@ async def get_profile(user: CurrentUser, db: DB):
 
 @router.put("/me", response_model=UserResponse)
 async def update_profile(
-    avatar: UploadFile,
     user: CurrentUser,
     db: DB,
     user_payload: UserUpdate = Depends(user_update_form),
+    avatar: UploadFile | None = File(None),
 ):
     findUser = await db.scalar(select(User).where(User.id == user.id))
     if not findUser:
@@ -222,36 +223,49 @@ async def update_profile(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    if avatar.content_type not in (
-        "image/png",
-        "image/webp",
-        "image/avif",
-        "image/jpeg",
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Upsupported image type"
+    if avatar is not None:
+        if avatar.content_type not in (
+            "image/png",
+            "image/webp",
+            "image/avif",
+            "image/jpeg",
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Upsupported image type"
+            )
+
+        ext = avatar.content_type.split("/")[-1]
+        file_key = f"{user.id}/{uuid.uuid4()}.{ext}"
+        contents = await avatar.read()
+
+        s3_client.put_object(
+            Bucket=BUCKET_NAME,
+            Key=file_key,
+            Body=contents,
+            ContentType=avatar.content_type,
         )
 
-    ext = avatar.content_type.split("/")[-1]
-    file_key = f"{user.id}/{uuid.uuid4()}.{ext}"
-    contents = await avatar.read()
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=findUser.avatar_url)
+        avatar_url = f"{R2_ENDPOINT}/{file_key}"
+        findUser.avatar_url = avatar_url
 
-    s3_client.put_object(
-        Bucket=BUCKET_NAME, Key=file_key, Body=contents, ContentType=avatar.content_type
-    )
+        persistant_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": file_key},
+            ExpiresIn=3600,  # 1 hour
+        )
 
-    s3_client.delete_object(Bucket=BUCKET_NAME, Key=findUser.avatar_url)
-    avatar_url = f"{R2_ENDPOINT}/{file_key}"
-
+    else:
+        persistant_url = s3_client.generate_presigned_url(
+            "get_object", Params={"Bucket": BUCKET_NAME, "Key": findUser.avatar_url}
+        )
+ 
     findUser.name = user_payload.name
     findUser.email = user_payload.email
-    findUser.avatar_url = avatar_url
 
-    persistant_url = s3_client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": BUCKET_NAME, "Key": file_key},
-        ExpiresIn=3600,  # 1 hour
-    )
+    if user_payload.password is not None:
+        hashed_password = hash_password(user_payload.password)
+        findUser.hashed_password = hashed_password
 
     await db.commit()
     await db.refresh(findUser)
