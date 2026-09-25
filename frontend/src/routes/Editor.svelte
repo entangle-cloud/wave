@@ -705,8 +705,9 @@
                   <div class="w-full">
                     <div class="card bg-olive-100">
                       <div class="card-body">
-                        <p class="font-semibold text-olive-600">
-                          Use AI to find information or do anything with the document.
+                        <p class="font-semibold text-olive-600 text-center flex flex-col gap-2">
+                          <img src="/sunflower.svg" class="h-16" alt="sunflower" />
+                          Use AI to find information or make changes to the document.
                         </p>
                       </div>
                     </div>
