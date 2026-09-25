@@ -542,7 +542,7 @@
       authorName = requestJson.author_name;
       documentDescription = requestJson.description;
       setSelectedCategoryId(requestJson.category_id.toString());
-      docVersion.set(requestJson.updated_at)
+      docVersion.set(new Date(requestJson.updated_at).getTime())
       console.info("loaded from server");
     } catch (e) {
       if (generation === loadGeneration) {
