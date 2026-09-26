@@ -101,7 +101,7 @@ def mcp_tools_to_gemini_tool(
             name=tool.name,
             description=tool.description or "",
             parameters=sanitize_schema(
-                tool.inputSchema or {"type": "object", "properties": {}}
+                tool.input_schema or {"type": "object", "properties": {}}
             ),
         )
         for tool in mcp_tools
@@ -200,7 +200,7 @@ async def ask(
         streamable_http_client(
             mcp_url,
             http_client=http_client,
-        ) as (read, write, _),
+        ) as (read, write, *_),
         ClientSession(read, write) as session,
     ):
         await session.initialize()

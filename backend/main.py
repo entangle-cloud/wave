@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-import httpx
+import httpx2
 from dotenv import load_dotenv
 import os
 from typing import Annotated
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from routers.auth import router as auth_router
 from routers.ask import router as ask_router
 from routers.api import router as api_router
+from routers.settings import router as settings_router
 from routers.posts import router as posts_router
 from routers.categories import router as categories_router
 from clients import viking_client
@@ -30,10 +31,10 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    http_client = httpx.AsyncClient(headers=HEADERS)
+    http_client = httpx2.AsyncClient(headers=HEADERS)
     await viking_client.client.initialize()
     async with (
-        streamable_http_client(OPENVIKING_MCP_URL, http_client=http_client) as (read, write, _),
+        streamable_http_client(OPENVIKING_MCP_URL, http_client=http_client) as (read, write),
         ClientSession(read, write) as session,
     ):
         await session.initialize()
@@ -71,6 +72,7 @@ app.include_router(ask_router)
 app.include_router(posts_router)
 app.include_router(categories_router)
 app.include_router(api_router)
+app.include_router(settings_router)
 
 
 @app.get("/items/{item_id}")
