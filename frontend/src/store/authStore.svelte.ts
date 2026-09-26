@@ -120,6 +120,7 @@ export const signup = async (
   email: string,
   name: string,
   password: string,
+  turnsiteToken: string
 ): Promise<boolean> => {
   const request = await fetch(
     `${import.meta.env.VITE_API_ENDPOINT}/auth/signup`,
@@ -133,6 +134,7 @@ export const signup = async (
         name: name,
         email: email,
         password: password,
+        turnstile_token: turnsiteToken
       }),
     },
   );
@@ -159,11 +161,16 @@ export const signup = async (
 export const updateProfile = async (
   name: string,
   email: string,
+  password: string | undefined,
   avatar: File | null
 ): Promise<boolean> => {
   const form = new FormData()
   form.append("name", name)
   form.append("email", email)
+  if (password) {
+    form.append("password", password)
+  }
+
   if (avatar)
     form.append("avatar", avatar)
   const request = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/auth/me`, {
