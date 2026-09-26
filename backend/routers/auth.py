@@ -30,13 +30,15 @@ from schemas import (
     user_update_form,
 )
 
-
 from urllib.parse import urlparse, unquote
 from clients.s3_client import s3_client
+import httpx2
 
 JWT_SECRET = os.getenv("JWT_SECRET")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 R2_ENDPOINT = os.getenv("R2_ENDPOINT")
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY")
+SITEVERIFY_URL = os.getenv("SITEVERITY_URL")
 
 DB = Annotated[AsyncSession, Depends(get_db)]
 
@@ -100,10 +102,27 @@ def create_access_token(user: User) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
+async def verify_turnstile(token: str, remoteip: str | None = None) -> dict:
+    async with httpx2.AsyncClient() as client:
+        resp = await client.post(
+            SITEVERIFY_URL,
+            json={
+                "secret": TURNSTILE_SECRET_KEY,
+                "response": token,
+                "remoteip": remoteip,
+            },
+        )
+        return resp.json()
+
 @router.post(
     "/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-async def signup(payload: SignupRequest, db: DB):
+async def signup(payload: SignupRequest,request: Request, db: DB):
+
+    client_ip = request.headers.get("cf-connecting-ip") or request.client.host
+    result = await verify_turnstile(payload.turnstile_token, client_ip)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail="Verification failed")
     existing = await db.scalar(select(User).where(User.email == payload.email))
     if existing:
         raise HTTPException(

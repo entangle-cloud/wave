@@ -5,6 +5,7 @@
    */
   let { children }: { children: import("svelte").Snippet } = $props();
   import ArrowLeftSquareFilled from "@iconify-svelte/reicon/arrow-left-square-filled";
+  import CloudflareIcon from "@iconify-svelte/simple-icons/cloudflare";
 </script>
 
 <div class="min-h-screen bg-gray-100 flex flex-col justify-center sm:py-12">
@@ -23,12 +24,13 @@
     <div class="py-5">
       <div class="grid grid-cols-2 gap-1">
         <div class="text-center sm:text-left whitespace-nowrap">
-          <button
+          <a
+            href="https://www.cloudflare.com/en-gb/turnstile-privacy-policy/"
             class="transition btn btn-ghost duration-200 text-gray-600 font-normal text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-opacity-50 ring-inset"
           >
-            <ArrowLeftSquareFilled height="1.25em" />
-            Back to App
-          </button>
+            <CloudflareIcon height="1.25em" />
+            Protected by Cloudflare
+          </a>
         </div>
       </div>
     </div>

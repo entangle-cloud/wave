@@ -12,7 +12,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1, max_length=255)
     password: str = Field(min_length=10)
-
+    turnstile_token: str = Field()
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -36,6 +36,7 @@ class UserUpdate(BaseModel):
 
     email: EmailStr
     name: str
+
     password: str | None = None
     role: UserRole | None = None
     is_active: bool | None = None

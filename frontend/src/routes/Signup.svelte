@@ -2,15 +2,18 @@
   import { z } from "zod";
   import { Button, Label } from "bits-ui";
   import { signup } from "../store/authStore.svelte";
-  import { loadCategories } from "../store/categoryStore.svelte";
+  import { onMount, onDestroy } from "svelte";
 
   let name = $state("");
   let email = $state("");
   let password = $state("");
+  let widgetContainer: HTMLDivElement;
+  let widgetId: string | undefined;
+  let turnstileToken = $state("");
   let submitting = $state(false);
-  let errors = $state<Partial<Record<"name" | "email" | "password", string>>>(
-    {},
-  );
+  let errors = $state<
+    Partial<Record<"name" | "email" | "password" | "turnstile", string>>
+  >({});
 
   const signupSchema = z.object({
     name: z.string().trim().min(2, "Name must be at least 2 characters"),
@@ -18,6 +21,7 @@
     password: z
       .string()
       .min(10, "Password must be at least 10 characters")
+
       .regex(/[A-Z]/, "Must include an uppercase letter")
       .regex(/[0-9]/, "Must include a number"),
   });
@@ -36,8 +40,9 @@
 
   const handleSubmit = async (event: SubmitEvent) => {
     event.preventDefault();
-
+    console.log(turnstileToken);
     const result = signupSchema.safeParse({ name, email, password });
+    console.log(turnstileToken);
     if (!result.success) {
       const fieldErrors: typeof errors = {};
       for (const issue of result.error.issues) {
@@ -48,6 +53,14 @@
       return;
     }
 
+    if (!turnstileToken) {
+      errors = {
+        ...errors,
+        turnstile: "Please complete the verification challenge",
+      };
+      return;
+    }
+
     errors = {};
     submitting = true;
     try {
@@ -55,16 +68,32 @@
         result.data.email,
         result.data.name,
         result.data.password,
+        turnstileToken, // pass it through
       );
       if (request) {
         location.hash = "#/";
-      } else {
-        console.log(request);
       }
     } finally {
       submitting = false;
     }
   };
+
+  onMount(() => {
+    (window as any).turnstile?.ready(() => {
+      widgetId = (window as any).turnstile.render(widgetContainer, {
+        sitekey: "0x4AAAAAAFDrsSBVS6EOoSW2",
+        theme: "light",
+        size: "normal",
+        callback: (token: string) => {
+          turnstileToken = token;
+        },
+      });
+    });
+  });
+
+  onDestroy(() => {
+    if (widgetId) (window as any).turnstile?.remove(widgetId);
+  });
 </script>
 
 <svelte:head>
@@ -79,7 +108,9 @@
     <input
       id="signup-name"
       type="text"
-      class="input rounded-md input-bordered w-full {errors.name ? 'input-error' : ''}"
+      class="input rounded-md input-bordered w-full {errors.name
+        ? 'input-error'
+        : ''}"
       placeholder="Jane Doe"
       bind:value={name}
       onblur={() => validateField("name")}
@@ -109,9 +140,7 @@
   </div>
 
   <div class="form-control fieldset w-full">
-    <Label.Root for="signup-password" class="label">
-      Password
-    </Label.Root>
+    <Label.Root for="signup-password" class="label">Password</Label.Root>
     <input
       id="signup-password"
       type="password"
@@ -152,3 +181,5 @@
   Already have an account?
   <a href="#/login" class="link link-primary">Log in</a>
 </p>
+
+<div bind:this={widgetContainer}></div>
