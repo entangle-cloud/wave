@@ -18,6 +18,8 @@ from datetime import datetime, timedelta, UTC
 import bcrypt
 import jwt
 from typing import Annotated, Union
+from importlib.resources import files
+from dicebear import Avatar, Style
 
 from database.database import get_db
 from database.user import User, UserRole
@@ -47,6 +49,31 @@ if not JWT_SECRET:
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_style = Style.from_json(
+    files("dicebear_styles").joinpath("initial-face.json").read_text("utf-8")
+)
+
+def get_avatar_svg(email: str, size: int = 200) -> str:
+    """
+    Generate a deterministic DiceBear 'initial-face' avatar SVG for a given email.
+
+    Args:
+        email: The user's email address (used as the seed, so the same
+               email always produces the same avatar).
+        size: Avatar size in pixels.
+
+    Returns:
+        SVG markup as a string.
+    """
+    normalized_email = email.strip().lower()
+
+    avatar = Avatar(_style, {
+        "seed": normalized_email,
+        "size": size,
+    })
+
+    return avatar.to_data_uri()
 
 
 async def get_current_user(request: Request) -> User:
@@ -169,6 +196,8 @@ async def login(payload: LoginRequest, db: DB, response: Response):
             Params={"Bucket": BUCKET_NAME, "Key": key},
             ExpiresIn=3600,  # 1 hour
         )
+    else:
+        persistant_url = get_avatar_svg(user.email)
 
     response_user = {
         "id": user.id,
@@ -217,6 +246,8 @@ async def get_profile(user: CurrentUser, db: DB):
             Params={"Bucket": BUCKET_NAME, "Key": key},
             ExpiresIn=3600,  # 1 hour
         )
+    else:
+        persistant_url = get_avatar_svg(user.email)
 
     return UserResponse(
         id=findUser.id,
