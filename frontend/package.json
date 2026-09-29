@@ -27,6 +27,7 @@
     "@iconify-svelte/hugeicons": "^1.0.19",
     "@iconify-svelte/ph": "^1.0.3",
     "@iconify-svelte/reicon": "^1.0.3",
+    "@iconify-svelte/simple-icons": "git+https://gitlab.com/iconify-icons/svelte.git#simple-icons",
     "@milkdown/crepe": "^7.22.1",
     "@milkdown/kit": "^7.22.1",
     "@milkdown/plugin-listener": "^7.22.1",
