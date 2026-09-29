@@ -1,6 +1,10 @@
 import type { RoutePrecondition } from "svelte-spa-router";
 import { push } from "svelte-spa-router";
-import { checkAuthenticated } from "./store/authStore.svelte";
+import {
+  checkAuthenticated,
+  checkIsAdmin,
+  refreshUser,
+} from "./store/authStore.svelte";
 
 /**
  * Route precondition: allow only when authenticated,
@@ -19,6 +23,27 @@ export const requireAuth: RoutePrecondition = () => {
  */
 export const skipIfAuthed: RoutePrecondition = () => {
   if (!checkAuthenticated()) return true;
+
+  push("/");
+  return false;
+};
+
+/**
+ * Route precondition: allow only admins.
+ * Refreshes the cached role once so a stale localStorage role can't
+ * grant or deny access incorrectly.
+ */
+export const requireAdmin: RoutePrecondition = async () => {
+  if (!checkAuthenticated()) {
+    push("/login");
+    return false;
+  }
+
+  if (checkIsAdmin()) return true;
+
+  await refreshUser();
+
+  if (checkIsAdmin()) return true;
 
   push("/");
   return false;

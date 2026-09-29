@@ -1,10 +1,10 @@
 <script lang="ts">
   import { Collapsible } from "bits-ui";
-  import { categories } from "../../store/categoryStore.svelte";
+  import { categories, loadCategories } from "../../store/categoryStore.svelte";
+  import { checkAuthenticated } from "../../store/authStore.svelte";
   import { activeDoc } from "../../store/editorStore.svelte";
   import { router } from "svelte-spa-router";
   import FileTextThinIcon from "@iconify-svelte/ph/file-text-thin";
-  import {mappedCategories} from '../funcs'
   import {
     ensurePosts,
     postsByCategory,
@@ -46,7 +46,11 @@
   });
 
   onMount(async () => {
-    categories.set(mappedCategories)
+    // SidebarTree only mounts inside AppLayout (authenticated routes), but
+    // guard anyway so a future reuse on /login or /signup never fires
+    // apiFetch (api.ts:12) unauthenticated and triggers logout().
+    if (!checkAuthenticated()) return;
+    await loadCategories();
     for (const [id, isOpen] of Object.entries(openIds)) {
       if (isOpen) void ensurePosts(Number(id));
     }

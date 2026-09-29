@@ -8,18 +8,23 @@
   import TuningSquareDuotoneIcon from "@iconify-svelte/reicon/tuning-square-duotone";
   import Home6Icon from "@iconify-svelte/reicon/home6";
   import AddSquareDuoTone from "@iconify-svelte/reicon/add-circle";
+  import UserIcon from "@iconify-svelte/reicon/user";
   import { Avatar } from "bits-ui";
 
   let { children }: { children: import("svelte").Snippet } = $props();
 
   let open = $state(true);
 
-  const navItems = [
+  const user = $derived($userStore);
+  const isAdmin = $derived(user?.role === "admin");
+
+  const navItems = $derived([
     { icon: Home6Icon, label: "Home", href: "#/" },
     { icon: AddSquareDuoTone, label: "New", href: "#/docs/new" },
-  ];
-
-  const user = $derived($userStore);
+    ...(isAdmin
+      ? [{ icon: UserIcon, label: "Users", href: "#/users" }]
+      : []),
+  ]);
 </script>
 
 <div class="flex h-screen w-full overflow-hidden bg-olive-100">

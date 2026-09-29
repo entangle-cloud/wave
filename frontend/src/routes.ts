@@ -6,19 +6,23 @@ import CategoryView from "./routes/CategoryView.svelte";
 import Signup from "./routes/Signup.svelte";
 import Login from "./routes/Login.svelte";
 import Settings from "./routes/Settings.svelte";
+import Users from "./routes/Users.svelte";
 import { wrap } from "svelte-spa-router/wrap";
-import { requireAuth, skipIfAuthed } from "./guard";
+import { requireAdmin, requireAuth, skipIfAuthed } from "./guard";
+import ViewMode from "./routes/ViewMode.svelte";
 
 export default {
   "/": wrap({ component: Home, conditions: [requireAuth] }),
   "/docs": wrap({ component: Editor, conditions: [requireAuth] }),
   "/docs/:id": wrap({ component: Editor, conditions: [requireAuth] }),
+  "/view/:id": wrap({component: ViewMode, conditions: [requireAuth]}),
   "/categories": wrap({ component: Categories, conditions: [requireAuth] }),
   "/categories/:id": wrap({
     component: CategoryView,
     conditions: [requireAuth],
   }),
   "/settings": wrap({ component: Settings, conditions: [requireAuth] }),
+  "/users": wrap({ component: Users, conditions: [requireAdmin] }),
   "/login": wrap({ component: Login, conditions: [skipIfAuthed] }),
   "/signup": wrap({ component: Signup, conditions: [skipIfAuthed] }),
   "*": NotFound,
