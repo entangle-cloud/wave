@@ -192,3 +192,7 @@ class SearchResponse(BaseModel):
     response: str
     references: list[PostResponse]
     edits: list[EditProposal] = []
+
+class CategoryAccessResult(BaseModel):
+    has_access: bool = False
+    role: UserRole | None = None
