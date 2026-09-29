@@ -15,6 +15,7 @@ from routers.api import router as api_router
 from routers.settings import router as settings_router
 from routers.posts import router as posts_router
 from routers.categories import router as categories_router
+from routers.users import router as users_router
 from clients import viking_client
 
 load_dotenv()
@@ -73,6 +74,7 @@ app.include_router(posts_router)
 app.include_router(categories_router)
 app.include_router(api_router)
 app.include_router(settings_router)
+app.include_router(users_router)
 
 
 @app.get("/items/{item_id}")
