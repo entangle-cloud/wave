@@ -169,8 +169,6 @@
     if (!params?.id) {
       replace("/docs/new");
     }
-    // const mappedCategory = mappedCategories;
-    // categories.set(mappedCategory);
 
     const postId = params?.id;
     if (postId && postId !== "new") {
@@ -335,7 +333,6 @@
           headers: {
             "content-type": "application/json",
           },
-          credentials: "include",
           body: JSON.stringify({
             title: $editorTitle,
             category_id: Number(getSelectedCategoryId()),
@@ -346,20 +343,20 @@
       );
 
       if (request.ok) {
-        const updatedList = $postsByCategory[
-          Number(getSelectedCategoryId())
-        ].map((item) =>
-          item.id === Number(params.id)
-            ? { ...item, title: $editorTitle ?? "Untitled" }
-            : item,
-        );
-
-        postsByCategory.update((map) => ({
-          ...map,
-          [Number(getSelectedCategoryId())]: updatedList,
-        }));
-
         const jsonRequest = await request.json();
+        const post = Array.isArray(jsonRequest) ? jsonRequest[0] : jsonRequest;
+        const catId = post.category_id;
+
+        postsByCategory.update((map) => {
+          const list = map[catId] ?? [];
+          const exists = list.some((p) => p.id === post.id);
+          return {
+            ...map,
+            [catId]: exists
+              ? list.map((p) => (p.id === post.id ? { ...p, ...post } : p))
+              : [post, ...list],
+          };
+        });
         await addDocumentToLocalDB(
           jsonRequest.id,
           jsonRequest.title,
@@ -381,7 +378,6 @@
           headers: {
             "content-type": "application/json",
           },
-          credentials: "include",
           body: JSON.stringify({
             post_id: Number(params.id),
             title: $editorTitle,
@@ -425,6 +421,8 @@
    */
   const deleteDocument = async (id: number) => {
     isDeleting = true;
+    const categoryId = Number(getSelectedCategoryId());
+
     const request = await apiFetch(
       `${import.meta.env.VITE_API_ENDPOINT}/posts/${id}`,
       {
@@ -434,17 +432,21 @@
     );
 
     if (request.ok) {
-      console.log("delete successful");
-      await push("/");
+      postsByCategory.update((map) => ({
+        ...map,
+        [categoryId]: (map[categoryId] ?? []).filter((p) => p.id !== id),
+      }));
+
+      db.documents.delete(id);
       dialogAlertOpen = false;
-      db.documents.delete(Number(params?.id));
-      await ensurePosts(Number(getSelectedCategoryId()));
+      isDeleting = false;
+      await push("/");
+      await ensurePosts(categoryId);
     } else {
       dialogAlertOpen = false;
       isDeleting = false;
     }
   };
-
   /**
    * Loads a document from the server by its ID. Populates local state and stores.
    * @param {string} postId - The ID of the post to load
@@ -470,7 +472,7 @@
         documentDescription = current.description;
         documentId = current.id;
         authorName = current.createdByName;
-        docVersion.set(1)
+        docVersion.set(1);
         setSelectedCategoryId(current.categoryId.toString());
       } else {
         activeDoc.set(postId);
@@ -542,7 +544,7 @@
       authorName = requestJson.author_name;
       documentDescription = requestJson.description;
       setSelectedCategoryId(requestJson.category_id.toString());
-      docVersion.set(new Date(requestJson.updated_at).getTime())
+      docVersion.set(new Date(requestJson.updated_at).getTime());
       console.info("loaded from server");
     } catch (e) {
       if (generation === loadGeneration) {
@@ -578,7 +580,9 @@
         </AlertDialog.Description>
       </div>
       <div class="flex w-full items-center justify-end gap-2">
-        <AlertDialog.Cancel class="btn rounded-lg btn-neutral">Cancel</AlertDialog.Cancel>
+        <AlertDialog.Cancel class="btn rounded-lg btn-neutral"
+          >Cancel</AlertDialog.Cancel
+        >
         <AlertDialog.Action
           disabled={isDeleting === true}
           onclick={() => {
@@ -705,8 +709,14 @@
                   <div class="w-full">
                     <div class="card bg-olive-100">
                       <div class="card-body">
-                        <p class="font-semibold text-olive-600 text-center flex flex-col gap-2">
-                          <img src="/sunflower.svg" class="h-16" alt="sunflower" />
+                        <p
+                          class="font-semibold text-olive-600 text-center flex flex-col gap-2"
+                        >
+                          <img
+                            src="/sunflower.svg"
+                            class="h-16"
+                            alt="sunflower"
+                          />
                           Use AI to find information or make changes to the document.
                         </p>
                       </div>
@@ -716,13 +726,13 @@
               </div>
               {#if $miniChatResponses.length > 0}
                 <div id="responses" class="px-4 flex flex-col gap-4">
-                {#each $miniChatResponses as response}
-                <div class="bg-olive-100 card">
-                  <div class="card-body text-olive-600 prose">
-                    {@html marked(response)}
-                  </div>
-                </div>
-                {/each}
+                  {#each $miniChatResponses as response}
+                    <div class="bg-olive-100 card">
+                      <div class="card-body text-olive-600 prose">
+                        {@html marked(response)}
+                      </div>
+                    </div>
+                  {/each}
                 </div>
               {/if}
             </div>
