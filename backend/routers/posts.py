@@ -408,7 +408,7 @@ async def delete_post(post_id: int, db: DB, user: CurrentUser, request: Request)
         )
 
     access_gate = await has_category_access(
-        db=db, category_id=post.cateogry_id, user=user
+        db=db, category_id=post.category_id, user=user
     )
 
     if access_gate.has_access is False:
