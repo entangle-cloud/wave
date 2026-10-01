@@ -31,7 +31,7 @@
 
 <form onsubmit={handleSubmit} class="flex flex-col gap-3">
 <div class="fieldset w-full">
-    <Label.Root for="login-email" class="label">Email</Label.Root>
+    <Label.Root for="login-email" class="fieldset-label">Email</Label.Root>
     <input
       id="login-email"
       type="email"
@@ -43,7 +43,7 @@
   </div>
 
   <div class="fieldset w-full">
-    <Label.Root for="login-password" class="label"
+    <Label.Root for="login-password" class="fieldset-label"
       >Password</Label.Root
     >
     <input
