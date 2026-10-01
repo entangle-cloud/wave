@@ -2,10 +2,14 @@
   import { onMount } from "svelte";
   import { z } from "zod";
   import { Avatar, Button, Label } from "bits-ui";
-  import { updateProfile } from "../store/authStore.svelte";
+  import { updateProfile, userStore } from "../store/authStore.svelte";
   import { Toaster, toast } from "svelte-sonner";
   import { apiFetch } from "../lib/api";
   import Setting2Icon from "@iconify-svelte/reicon/setting2";
+  import UserIcon from "@iconify-svelte/reicon/user";
+
+  const currentUser = $derived($userStore);
+  const isAdmin = $derived(currentUser?.role === "admin");
 
   let name = $state("");
   let email = $state("");
@@ -293,4 +297,16 @@
       </a>
     </div>
   </div>
+
+  {#if isAdmin}
+    <div class="card card-border border-olive-200 mt-8 bg-white">
+      <div class="card-body">
+        <h2 class="card-title">Administration</h2>
+        <a class="underline flex items-center gap-2" href="#/users">
+          <UserIcon class="size-4 shrink-0" />
+          <span>Manage Users and Roles</span>
+        </a>
+      </div>
+    </div>
+  {/if}
 </div>
