@@ -11,7 +11,17 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
- 
+
+  api:
+    build: .
+    container_name: ai_wiki_api
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+
 volumes:
   pgdata:
- 
