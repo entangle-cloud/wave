@@ -67,7 +67,7 @@
 
 {#snippet dot(color: string)}
   <span
-    class="size-2.5 shrink-0 rounded-full border border-base-content/20"
+    class="size-3 shrink-0 rounded-full border border-base-content/20"
     style="background:{color}"
   ></span>
 {/snippet}
@@ -148,7 +148,7 @@
             style="padding-left:{(depth + 2) * 12}px"
             title={post.title}
           >
-            <FileTextThinIcon class="size-4.5" />
+            <FileTextThinIcon class="size-4.5 text-olive-600" />
             <span class="truncate">{post.title}</span>
           </a>
         </li>
