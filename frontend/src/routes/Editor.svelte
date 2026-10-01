@@ -324,39 +324,90 @@
     }
 
     saveOpen = false;
+    try {
+      if ($editorTitle?.trim() !== documentTitle.trim()) {
+        editorTitle.set(documentTitle);
+      }
 
-    if (params && params.id === "new") {
-      const request = await apiFetch(
-        `${import.meta.env.VITE_API_ENDPOINT}/posts`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
+      if (params && params.id === "new") {
+        const request = await apiFetch(
+          `${import.meta.env.VITE_API_ENDPOINT}/posts`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              title: $editorTitle,
+              category_id: Number(getSelectedCategoryId()),
+              content: $editorContent,
+              description: documentDescription,
+            }),
           },
-          body: JSON.stringify({
-            title: $editorTitle,
-            category_id: Number(getSelectedCategoryId()),
-            content: $editorContent,
-            description: documentDescription,
-          }),
-        },
-      );
+        );
 
-      if (request.ok) {
+        if (request.ok) {
+          const jsonRequest = await request.json();
+          const post = Array.isArray(jsonRequest)
+            ? jsonRequest[0]
+            : jsonRequest;
+          const catId = post.category_id;
+
+          postsByCategory.update((map) => {
+            const list = map[catId] ?? [];
+            const exists = list.some((p) => p.id === post.id);
+            return {
+              ...map,
+              [catId]: exists
+                ? list.map((p) => (p.id === post.id ? { ...p, ...post } : p))
+                : [post, ...list],
+            };
+          });
+          await addDocumentToLocalDB(
+            jsonRequest.id,
+            jsonRequest.title,
+            $editorContent ? $editorContent : "",
+            documentDescription,
+            Number(getSelectedCategoryId()),
+            jsonRequest.created_by,
+            authorName,
+            jsonRequest.created_at,
+            jsonRequest.updated_at,
+          );
+          await replace(`/docs/${jsonRequest.id}`);
+        }
+      } else if (params && params.id !== "new") {
+        const request = await apiFetch(
+          `${import.meta.env.VITE_API_ENDPOINT}/posts/${documentId}`,
+          {
+            method: "PATCH",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              post_id: Number(params.id),
+              title: $editorTitle,
+              category_id: Number(getSelectedCategoryId()),
+              content: $editorContent,
+              description: documentDescription,
+            }),
+          },
+        );
         const jsonRequest = await request.json();
-        const post = Array.isArray(jsonRequest) ? jsonRequest[0] : jsonRequest;
-        const catId = post.category_id;
 
-        postsByCategory.update((map) => {
-          const list = map[catId] ?? [];
-          const exists = list.some((p) => p.id === post.id);
-          return {
-            ...map,
-            [catId]: exists
-              ? list.map((p) => (p.id === post.id ? { ...p, ...post } : p))
-              : [post, ...list],
-          };
-        });
+        const updatedList = $postsByCategory[
+          Number(getSelectedCategoryId())
+        ].map((item) =>
+          item.id === Number(params.id)
+            ? { ...item, title: $editorTitle ?? "Untitled" }
+            : item,
+        );
+
+        postsByCategory.update((map) => ({
+          ...map,
+          [Number(getSelectedCategoryId())]: updatedList,
+        }));
+
         await addDocumentToLocalDB(
           jsonRequest.id,
           jsonRequest.title,
@@ -368,50 +419,9 @@
           jsonRequest.created_at,
           jsonRequest.updated_at,
         );
-        await replace(`/docs/${jsonRequest.id}`);
       }
-    } else if (params && params.id !== "new") {
-      const request = await apiFetch(
-        `${import.meta.env.VITE_API_ENDPOINT}/posts/${documentId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            post_id: Number(params.id),
-            title: $editorTitle,
-            category_id: Number(getSelectedCategoryId()),
-            content: $editorContent,
-            description: documentDescription,
-          }),
-        },
-      );
-      const jsonRequest = await request.json();
-
-      const updatedList = $postsByCategory[Number(getSelectedCategoryId())].map(
-        (item) =>
-          item.id === Number(params.id)
-            ? { ...item, title: $editorTitle ?? "Untitled" }
-            : item,
-      );
-
-      postsByCategory.update((map) => ({
-        ...map,
-        [Number(getSelectedCategoryId())]: updatedList,
-      }));
-
-      await addDocumentToLocalDB(
-        jsonRequest.id,
-        jsonRequest.title,
-        $editorContent ? $editorContent : "",
-        documentDescription,
-        Number(getSelectedCategoryId()),
-        jsonRequest.created_by,
-        authorName,
-        jsonRequest.created_at,
-        jsonRequest.updated_at,
-      );
+    } catch (e) {
+      console.log(e);
     }
   };
 
