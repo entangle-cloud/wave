@@ -20,6 +20,8 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@dicebear/core": "^10.7.0",
+    "@dicebear/styles": "^10.6.0",
     "@iconify-svelte/cib": "^1.0.2",
     "@iconify-svelte/flat-color-icons": "^1.0.2",
     "@iconify-svelte/fluent": "^1.0.5",
