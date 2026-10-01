@@ -15,16 +15,23 @@
   import ChevronUpIcon from "@iconify-svelte/reicon/chevron-up";
   import CheckIcon from "@iconify-svelte/reicon/check";
   import X from "@iconify-svelte/reicon/x";
+  import CaretDoubleDown from "@iconify-svelte/ph/caret-double-down-thin";
+  import CaretDoubleUp from "@iconify-svelte/ph/caret-double-up-thin";
+  import CaretUpDown from "@iconify-svelte/ph/caret-up-down-thin";
+  import CategoryIcon from "@iconify-svelte/reicon/category";
+  import Check from "@iconify-svelte/reicon/check-filled";
+  import PlusIcon from "@iconify-svelte/reicon/plus"
+  import { Select } from "bits-ui";
 
   const COLORS = [
-    "#ef4444",
-    "#f97316",
-    "#eab308",
-    "#22c55e",
-    "#14b8a6",
-    "#3b82f6",
-    "#8b5cf6",
-    "#ec4899",
+    "#ff99c8",
+    "#fec8c3",
+    "#fcf6bd",
+    "#d0f4de",
+    "#a9def9",
+    "#e4c1f9",
+    "#c8c7d6",
+    "#b8b8ff",
   ];
 
   interface Participants {
@@ -49,6 +56,7 @@
   let sharedUsers = $state<Participants[]>([]);
   let shareStatus = $state<boolean | null>(null);
   let shareMessage = $state("");
+  let selectedCategory = $state("")
 
   let form = $state<{
     name: string;
@@ -85,9 +93,15 @@
   };
 
   const parentOptions = $derived.by(() => {
-    if (!editingId) return $categories;
-    const excluded = new Set([editingId, ...descendantIds(editingId)]);
-    return $categories.filter((category) => !excluded.has(category.id));
+    const excluded = editingId
+      ? new Set([editingId, ...descendantIds(editingId)])
+      : new Set<number>();
+
+    return $categories.map((category) => ({
+      value: String(category.id),
+      label: category.name,
+      disabled: excluded.has(category.id),
+    }));
   });
 
   const rootCount = $derived(
@@ -319,6 +333,17 @@
     isLoading = false;
     selectedCategoryId = categoryId;
   };
+
+  
+  const setParentCategoryValue = (newValue: string) => {
+    form.parentId = Number(newValue)
+    selectedCategory = newValue 
+  }
+
+
+  const getParentCategoryValue = () => {
+    return selectedCategory
+  }
 </script>
 
 <svelte:head>
@@ -474,8 +499,9 @@
               {/each}
             </div>
             <div class="card-actions flex items-center mt-2">
-              <Dialog.Close disabled={pendingShare} class="btn rounded-lg btn-soft"
-                >Cancel</Dialog.Close
+              <Dialog.Close
+                disabled={pendingShare}
+                class="btn rounded-lg btn-soft">Cancel</Dialog.Close
               >
               <Button.Root
                 disabled={pendingShare}
@@ -520,8 +546,9 @@
       </span>
     </div>
     <div class="flex-none">
-      <Button.Root class="btn btn-primary btn-soft btn-sm" onclick={openCreate}>
-        + New category
+      <Button.Root class="btn btn-neutral btn-soft btn-sm" onclick={openCreate}>
+        <PlusIcon class="size-4" />
+        New category
       </Button.Root>
     </div>
   </div>
@@ -611,31 +638,72 @@
           {editingId ? "Edit category" : "New category"}
         </Dialog.Title>
 
-        <div class="form-control">
+        <div class="fieldset">
           <Label.Root class="label">Name</Label.Root>
           <input
             type="text"
-            class="input input-bordered w-full"
+            class="input input-bordered rounded-lg w-full"
             placeholder="e.g. Design"
             bind:value={form.name}
           />
         </div>
 
-        <div class="form-control">
-          <Label.Root class="label text-xs">Parent category</Label.Root>
-          <select
-            class="select select-bordered w-full"
-            bind:value={form.parentId}
+        <div class="fieldset">
+          <Label.Root class="label">Parent category</Label.Root>
+          <Select.Root
+            bind:value={getParentCategoryValue, setParentCategoryValue}
+            type="single"
+            items={parentOptions}
+            allowDeselect={true}
           >
-            <option value={null}>None (root category)</option>
-            {#each parentOptions as option (option.id)}
-              <option value={option.id}>{option.name}</option>
-            {/each}
-          </select>
+            <Select.Trigger
+              class="inline-flex h-10 w-full touch-none select-none items-center rounded-lg border border-neutral-400 bg-white px-3 text-sm transition-colors data-placeholder:text-neutral-500/50 dark:bg-neutral-950"
+              aria-label="Select a theme"
+            >
+              <CategoryIcon class="mr-2.5 size-6 text-neutral-500" />
+              <Select.Value placeholder="Select a theme" />
+              <CaretUpDown class="ml-auto size-6 text-neutral-500" />
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content
+                class="z-50 h-96 max-h-(--bits-select-content-available-height) w-(--bits-select-anchor-width) min-w-(--bits-select-anchor-width) select-none rounded-xl border border-neutral-200 bg-white px-1 py-3 shadow-lg outline-hidden data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 dark:border-neutral-800 dark:bg-neutral-950"
+                sideOffset={10}
+              >
+                <Select.ScrollUpButton
+                  class="flex w-full items-center justify-center"
+                >
+                  <CaretDoubleUp class="size-3" />
+                </Select.ScrollUpButton>
+                <Select.Viewport class="p-1">
+                  {#each parentOptions as parent, i (i + parent.value)}
+                    <Select.Item
+                      class="flex h-10 w-full select-none items-center rounded-md py-3 pl-5 pr-1.5 text-sm capitalize outline-hidden data-disabled:opacity-50 data-highlighted:bg-neutral-100 dark:data-highlighted:bg-neutral-800"
+                      value={parent.value}
+                      label={parent.label}
+                    >
+                      {#snippet children({ selected })}
+                        {parent.label}
+                        {#if selected}
+                          <div class="ml-auto">
+                            <Check aria-label="check" />
+                          </div>
+                        {/if}
+                      {/snippet}
+                    </Select.Item>
+                  {/each}
+                </Select.Viewport>
+                <Select.ScrollDownButton
+                  class="flex w-full items-center justify-center"
+                >
+                  <CaretDoubleDown class="size-3" />
+                </Select.ScrollDownButton>
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
         </div>
 
-        <div class="form-control">
-          <span class="mb-1 block text-sm font-medium">Color</span>
+        <div class="fieldset">
+          <span class="mb-1 label">Color</span>
           <div class="flex flex-wrap items-center gap-2">
             {#each COLORS as color (color)}
               <Button.Root
@@ -657,10 +725,10 @@
           </div>
         </div>
 
-        <div class="form-control">
-          <Label.Root class="label text-xs">Description</Label.Root>
+        <div class="fieldset">
+          <Label.Root class="label">Description</Label.Root>
           <textarea
-            class="textarea textarea-bordered w-full"
+            class="textarea textarea-bordered rounded-lg w-full"
             rows="2"
             placeholder="Optional description"
             bind:value={form.description}
@@ -669,7 +737,7 @@
 
         <div class="mt-2 flex justify-end gap-2">
           <Dialog.Close class="btn btn-ghost">Cancel</Dialog.Close>
-          <Button.Root type="submit" class="btn btn-primary">
+          <Button.Root type="submit" class="btn btn-neutral rounded-lg">
             {editingId ? "Save changes" : "Create"}
           </Button.Root>
         </div>
