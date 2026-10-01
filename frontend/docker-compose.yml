@@ -1,0 +1,11 @@
+services:
+  frontend:
+    image: imruky/entangle-wave-frontend:nightly
+    build:
+      context: .
+      args:
+        VITE_API_ENDPOINT: "https://wave.entangle.cloud"
+    ports:
+      - "4000:80"
+    restart: unless-stopped
+    container_name: ai_docs_frontend
