@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { categories } from "../store/categoryStore.svelte";
   import { apiFetch } from "../lib/api";
-  import DocumentIcon from "@iconify-svelte/flat-color-icons/document";
   import { toast } from "svelte-sonner";
-  import { AlertDialog } from "bits-ui";
-  import MiniChatBox from "../lib/Components/MiniChatBox.svelte";
-  import DocumentFolder48FilledIcon from "@iconify-svelte/fluent/document-folder-48-filled";
   import ChatBox from "../lib/Components/ChatBox.svelte";
   import DocumentOnePageMultiple24RegularIcon from "@iconify-svelte/fluent/document-one-page-24-regular";
 
+  import { Style, Avatar } from "@dicebear/core";
+  import definition from "@dicebear/styles/initials.json" with { type: "json" };
+
   let { params }: { params: { id: string } } = $props();
+
+  const style = new Style(definition);
 
   let documents = $state<{
     category: {
@@ -50,7 +50,6 @@
     isLoading = false;
   };
 
-
   $effect(() => {
     const categoryId = params?.id;
     if (categoryId) {
@@ -61,6 +60,17 @@
       });
     }
   });
+
+  const avatar = $derived(
+    new Avatar(style, {
+      backgroundColor: ["ffe3ea", "e3edff", "e2f5e9", "fdf1d4", "efe6ff", "ffadad", "ffd6a5", "d4a373", "d5bdaf", "b8e0d2", "71a5de"  ],
+      lettersVariant: { single: 1 },
+      seed: documents.category.name,
+    }),
+  );
+
+  // if you render it as a data URI, derive that too
+  const avatarUri = $derived(avatar.toDataUri());
 </script>
 
 <svelte:head>
@@ -72,15 +82,14 @@
   {#if !isLoading}
     <div class="gap-2">
       <div class="flex gap-2 items-center">
-        <DocumentFolder48FilledIcon
-          class="size-7 fill-amber-100"
-          style="color: {documents.category.colour}"
-        />
+        <div class="size-10 rounded-xl">
+          <img class="rounded-xl" src={avatarUri} alt={documents.category.name} />
+        </div>
         <h1 class="text-4xl text-olive-800 font-bold">
           {documents.category.name}
         </h1>
       </div>
-      <h2 class="px-9 text-lg text-olive-600">
+      <h2 class="px-12 text-lg text-olive-600">
         {documents.category.description}
       </h2>
     </div>
@@ -106,11 +115,13 @@
                     <h2
                       class="text-olive-800 card-title font-medium underline underline-offset-4 decoration-olive-300 hover:decoration-olive-600 transition-all duration-300 transform"
                     >
-                      <DocumentOnePageMultiple24RegularIcon class="size-4" />
+                      <DocumentOnePageMultiple24RegularIcon  class="size-4 text-olive-600" />
                       {document.title}
                     </h2>
                   </a>
-                  <p class="text-olive-600 px-6 select-none">{document.description}</p>
+                  <p class="text-olive-600 px-6 select-none">
+                    {document.description}
+                  </p>
                 </div>
               </div>
             </div>
