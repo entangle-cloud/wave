@@ -1,0 +1,4 @@
+:80 {
+    # Reverse proxy to the FastAPI app
+    reverse_proxy localhost:8000
+}
