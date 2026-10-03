@@ -21,4 +21,7 @@ db.version(1).stores({
 })
 
 export type { Document }
+
+export type AppDB = typeof db;
+
 export { db }
