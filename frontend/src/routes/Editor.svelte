@@ -2,7 +2,7 @@
   // ==========================================
   // Imports
   // ==========================================
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
   import { push, replace } from "svelte-spa-router";
   import { z } from "zod";
   import { type Document } from "../lib/db";
@@ -26,8 +26,6 @@
   import AngleDownFilledIcon from "@iconify-svelte/reicon/angle-down-filled";
   import CheckCircleDuotoneIcon from "@iconify-svelte/reicon/check-filled";
   import TrashIconFilled from "@iconify-svelte/reicon/trash-filled";
-  import ArrowsUpIcon from "@iconify-svelte/reicon/arrows-up";
-  import ArrowsDownIcon from "@iconify-svelte/reicon/arrows-down";
   import Tag2DuotoneIcon from "@iconify-svelte/reicon/tag2-duotone";
 
   // Stores and Libs
@@ -40,6 +38,7 @@
     activeDoc,
     documentLoading,
   } from "../store/editorStore.svelte";
+  import { addDocumentToLocalDB, updateLocalDraft } from "../lib/funcs";
   import { ensurePosts, postsByCategory } from "../store/sidebarStore.svelte";
   import {
     categories,
@@ -131,6 +130,17 @@
   let authorAvatar = $state("");
   let authorIsActive = $state(true);
 
+  /**
+   * Last editor content known to be persisted in IndexedDB. Plain (non-reactive)
+   * on purpose — the autosave effect reads it without subscribing, so writing
+   * it never re-triggers the effect. Reset on every document switch/load and
+   * after each successful server sync.
+   */
+  let lastPersistedContent: string | null = null;
+  let draftTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+  /** How long to wait after the last keystroke before writing to IndexedDB. */
+  const DRAFT_DEBOUNCE_MS = 800;
+
   // ==========================================
   // Derived State
   // ==========================================
@@ -187,6 +197,8 @@
   });
 
   onDestroy(() => {
+    if (draftTimer) clearTimeout(draftTimer);
+    lastPersistedContent = null;
     editorTitle.set(null);
     activeDoc.set(null);
     editorContent.set("#");
@@ -207,6 +219,11 @@
     const postId = params?.id;
     if (postId && postId !== "new") {
       documentLoading.set(true);
+      // Drop any pending autosave for the previous document — it must never
+      // write into the newly selected doc. The fresh seed is set in
+      // loadDocument/refreshFromServer.
+      if (draftTimer) clearTimeout(draftTimer);
+      lastPersistedContent = null;
       // Unmount the previous document's editor synchronously so its
       // ProseMirror view is fully destroyed before the new one mounts.
       editorMount = null;
@@ -222,6 +239,8 @@
         },
       });
     } else {
+      if (draftTimer) clearTimeout(draftTimer);
+      lastPersistedContent = null;
       editorTitle.set(null);
       activeDoc.set(null);
       editorContent.set("#");
@@ -229,6 +248,49 @@
       authorName = $userStore?.name ? $userStore.name : "";
       authorAvatar = $userStore?.avatar ? $userStore.avatar : "";
     }
+  });
+
+  /**
+   * Autosaves typing to IndexedDB (debounced). Every change to
+   * `editorContent` schedules a write; the timer resets on each keystroke so
+   * Dexie only sees one write per pause. `updatedDateTime` is bumped to now
+   * inside `updateLocalDraft`, marking the local copy newer than the last
+   * server sync until the user presses Save.
+   *
+   * Skipped for unsaved ("new") documents (no id yet), while loading, and
+   * for content already persisted (covers the load/refresh/save seeds).
+   */
+  $effect(() => {
+    const content = $editorContent;
+    const docKey = $activeDoc;
+    const loading = $documentLoading;
+
+    if (loading) return;
+    if (content == null || docKey == null || docKey === "new") return;
+    const id = Number(docKey);
+    if (!Number.isFinite(id) || id === 0) return;
+    if (content === lastPersistedContent) return;
+
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = setTimeout(async () => {
+      try {
+        const title = untrack(() => $editorTitle) ?? documentTitle;
+        const bumped = await updateLocalDraft(
+          db,
+          id,
+          content,
+          title ?? undefined,
+        );
+        if (bumped) docVersion.set(bumped.getTime());
+        lastPersistedContent = content;
+      } catch (e) {
+        console.warn("local draft autosave failed", e);
+      }
+    }, DRAFT_DEBOUNCE_MS);
+
+    return () => {
+      if (draftTimer) clearTimeout(draftTimer);
+    };
   });
 
   // ==========================================
@@ -272,30 +334,6 @@
     saveOpen = true;
   };
 
-  const addDocumentToLocalDB = async (
-    id: number,
-    title: string,
-    content: string,
-    description: string,
-    categoryId: number,
-    createdBy: number,
-    createdByName: string,
-    createdDateTime: Date,
-    updatedDateTime: Date,
-  ) => {
-    await db.documents.put({
-      id: id,
-      title,
-      content,
-      description,
-      categoryId,
-      createdBy,
-      createdByName,
-      createdDateTime,
-      updatedDateTime,
-    });
-  };
-
   /**
    * Validates document metadata and saves the document to the server and local database.
    * Handles creating new documents vs. updating existing ones.
@@ -324,6 +362,9 @@
     }
 
     saveOpen = false;
+    // Cancel any pending autosave so it can't overwrite the server-synced
+    // timestamps written below with a stale draft write.
+    if (draftTimer) clearTimeout(draftTimer);
     try {
       if ($editorTitle?.trim() !== documentTitle.trim()) {
         editorTitle.set(documentTitle);
@@ -364,6 +405,7 @@
             };
           });
           await addDocumentToLocalDB(
+            db,
             jsonRequest.id,
             jsonRequest.title,
             $editorContent ? $editorContent : "",
@@ -374,6 +416,10 @@
             jsonRequest.created_at,
             jsonRequest.updated_at,
           );
+          // Local copy now matches the server — mark content as persisted so
+          // autosave stays quiet until the next keystroke.
+          lastPersistedContent = $editorContent;
+          docVersion.set(new Date(jsonRequest.updated_at).getTime());
           await replace(`/docs/${jsonRequest.id}`);
         }
       } else if (params && params.id !== "new") {
@@ -409,6 +455,7 @@
         }));
 
         await addDocumentToLocalDB(
+          db,
           jsonRequest.id,
           jsonRequest.title,
           $editorContent ? $editorContent : "",
@@ -419,6 +466,9 @@
           jsonRequest.created_at,
           jsonRequest.updated_at,
         );
+        // Sync point: local copy now equals the server state.
+        lastPersistedContent = $editorContent;
+        docVersion.set(new Date(jsonRequest.updated_at).getTime());
       }
     } catch (e) {
       console.log(e);
@@ -442,6 +492,8 @@
     );
 
     if (request.ok) {
+      if (draftTimer) clearTimeout(draftTimer);
+      lastPersistedContent = null;
       postsByCategory.update((map) => ({
         ...map,
         [categoryId]: (map[categoryId] ?? []).filter((p) => p.id !== id),
@@ -471,6 +523,9 @@
       if (generation !== loadGeneration) return;
       if (current) {
         console.info("loaded from database");
+        // Seed the autosave baseline so the just-loaded content doesn't
+        // immediately schedule a redundant IndexedDB write.
+        lastPersistedContent = current.content;
         // Set activeDoc BEFORE content so the editor sees the doc switch
         // atomically and takes the fast full-replace path exactly once.
         activeDoc.set(postId);
@@ -517,18 +572,25 @@
       if (generation !== loadGeneration) return;
       authorAvatar = requestJson.author_avatar;
       authorIsActive = requestJson.author_active;
-      const localUpdated = current
-        ? new Date(current.updatedDateTime).getTime()
+      // Re-read the local copy: the user may have typed (and autosaved,
+      // bumping updatedDateTime) while this fetch was in flight. Server only
+      // wins when it is strictly newer — otherwise local unsaved typing is
+      // preserved until the user presses Save.
+      const latestLocal =
+        (await db.documents.get(Number(postId))) ?? current;
+      const localUpdated = latestLocal
+        ? new Date(latestLocal.updatedDateTime).getTime()
         : undefined;
       const serverUpdated = new Date(requestJson.updated_at).getTime();
       const serverIsNewer =
-        localUpdated === undefined || localUpdated !== serverUpdated;
+        localUpdated === undefined || serverUpdated > localUpdated;
       if (!serverIsNewer) {
         return;
       }
       // Check again before changing editor state.
       if (generation !== loadGeneration) return;
       await addDocumentToLocalDB(
+        db,
         requestJson.id,
         requestJson.title,
         requestJson.content,
@@ -544,6 +606,7 @@
       // Never touches `editorMount`: a mounted editor applies this via its
       // same-doc refresh path; an unmounted one (Dexie miss) mounts now.
       if (generation !== loadGeneration) return;
+      lastPersistedContent = requestJson.content;
       activeDoc.set(postId);
       editorContent.set(requestJson.content);
       if (!editorMount || editorMount.docId !== postId) {
